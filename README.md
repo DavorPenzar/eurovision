@@ -1,3 +1,3 @@
-#   [ESC](https://eurovision.tv/) Score Predictor
+#   [ESC](http://eurovision.tv/) Score Predictor
 
-Creation of a machine-learning model for predicting scores on the [Eurovision Song Contest](https://eurovision.tv/).
+Creation of a machine-learning model for predicting scores on the [Eurovision Song Contest](http://eurovision.tv/).
