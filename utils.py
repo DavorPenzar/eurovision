@@ -7,6 +7,7 @@ Utilities for preparation of the dataset of songs.
 
 # Import SciPy packages.
 import numpy as _np
+import scipy.optimize as _opt
 
 # Import TensorLy.
 import tensorly as _tl
@@ -520,6 +521,7 @@ def diverse_sample (
     See also
     --------
     tensor_var
+    diverse_sample_opt
 
     """
 
@@ -569,6 +571,115 @@ def diverse_sample (
         return (max_ind, max_Z)
     if return_var:
         return (max_Z, max_var)
+
+    return max_Z
+
+def diverse_sample_opt (
+    Y,
+    size,
+    axis = -1,
+    random_state = None,
+    return_ind = False,
+    return_var = False,
+    **kwargs
+):
+    """
+    Generate a sample as diverse as possible.
+
+    Diversity of a sample is measured by its variance (greater variance means
+    greater diversity).  Variance of a tensor-shaped sample is computed using
+    `tensor_var` function.
+
+    Unlike `diverse_sample` function, this function does not produce many
+    random samples in order to find the optimal one; rather, it uses
+    `scipy.optimize.minize` function for the optimisation.
+
+    Parameters
+    ----------
+    Y : (m1, m2, ..., n, ..., mk) array
+        Sample of observations in the shape of a tensor.  Let us denote the
+        size of the tensor `Y` along the axis `axis` (see parameter below) as
+        `n`.  Then each of the tensor `Y`'s `n` slices along the axis
+        represents a single observation.
+
+    size : int
+        Size of the sample of `Y` to generate.  It is assumed that `size` > 1.
+
+    axis : int, optional
+        Axis along which the observations are joined into the tensor `Y`. If
+        `axis` is negative, it counts from the last to the first axis, -1 being
+        the last.
+
+    random_state : None or numpy.random.RandomState, optional
+        Random state of the algorithm (for reproducibility of results).  This
+        is only used to produce the initial guess for `scipy.optimize.minimize`
+        function.
+
+    return_ind : boolean, optional
+        If true, indices of the subsample (in the original sample) are returned
+        as well.
+
+    return_var : boolean : optional
+        If true, variance of the subsample is returned as well.
+
+    kwargs
+        Optional keyword arguments for `scipy.optimize.minimize` function.
+
+    Returns
+    -------
+    ind : (size,) numpy.ndarray
+        Indices of the returned sample in the original sample.
+
+        *Returned only if `return_ind` is true.*
+
+    Z : (m1, m2, ..., size, ..., mk) numpy.ndarray
+        The most diverse sample found.
+
+    var : float
+        Variance of the returned sample multiplied by `size` minus the degrees
+        of freedom.
+
+        *Returned only if `return_var` is true.*
+
+    See also
+    --------
+    tensor_var
+    diverse_sample
+
+    """
+
+    # Prepare parameters.
+
+    Y = _np.moveaxis(Y, axis, 0)
+
+    if random_state is None:
+        random_state = _np.random
+
+    # Find the most diverse subsample.
+    max_ind = _np.sort(
+        _opt.minimize(
+            lambda ind: -tensor_var(Y[ind.round().astype(int)], axis = 0),
+            random_state.choice(Y.shape[0], size, replace = False),
+            bounds = _opt.Bounds(0, Y.shape[0] - 1),
+            constraints = {
+                'type': 'ineq',
+                'fun':
+                    lambda ind: \
+                        _np.diff(_np.sort(ind.round().astype(int))).min()
+            },
+            **kwargs
+        ).x
+    ).round().astype(int)
+    max_Z = _np.moveaxis(Y[max_ind], 0, axis)
+
+    # Return computed values.
+
+    if return_ind and return_var:
+        return (max_ind, max_Z, tensor_var(max_Z, axis = axis))
+    if return_ind:
+        return (max_ind, max_Z)
+    if return_var:
+        return (max_Z, tensor_var(max_Z, axis = axis))
 
     return max_Z
 
@@ -686,6 +797,7 @@ def split_sample (
     See Also
     --------
     tensor_var
+    split_sample_opt
 
     """
 
@@ -756,6 +868,190 @@ def split_sample (
             j = 0
         else:
             j += 1
+    min_ind = tuple(
+        _np.sort(min_ind[r[a]:r[a + 1]]) for a in range(int(n.size))
+    )
+    min_Xs = tuple(
+        tuple(_np.moveaxis(X[I], 0, axis) for I in min_ind) for X in Xs
+    )
+
+    # Return computed values.
+
+    if return_ind:
+        return (min_ind, min_Xs)
+
+    return min_Xs
+
+def split_sample_opt (
+    Xs,
+    size = [0.70, 0.15, 0.15],
+    axis = -1,
+    n_iter = 100,
+    early_stop = 16,
+    diff_weights = None,
+    random_state = None,
+    return_ind = False,
+    **kwargs
+):
+    """
+    Split a sample by preserving variance.
+
+    Given an iterable `Xs` of samples (see parameter below) aranged in tensors
+    all of which are of the same size along the axis `axis` and a 1-dimensional
+    array `size` of subsamples' sizes, the samples are split into subsamples
+    of given sizes along the provided axis by preserving the original variances
+    as closely as possible.  If `size` is an array of weights, such as
+    `[0.5, 0.5]`, actual sizes are first rounded up (if exactly between two
+    integers) by resolving sizes from beginning to end.  For example, if the
+    samples in `Xs` are of size 11, and `size` is `[0.5, 0.5]`, subsamples of
+    sizes 6, 5 are generated.
+
+    Actually, all given `sizes` are treated as positive weights, therefore
+    given an array of sizes `[2, 3, 5]`, the resulting subsamples may not be of
+    actual sizes 2, 3 and 5, but 0.2, 0.3 and 0.5 times the size of the
+    original sample.
+
+    Unlike `diverse_sample` function, this function does not produce many
+    random samples in order to find the optimal one; rather, it uses
+    `scipy.optimize.minize` function for the optimisation.  However, this
+    approach (as used in this function) may be worse since a permutation of the
+    array `list(range(0, n))` instead of its (sub)sample.
+
+    Parameters
+    ----------
+    Xs : iterable of array_like
+        Original samples in the form of tensors, all of which are of the same
+        size along the axis `axis` (see parameter below).  Let us denote the
+        of the tensors along the axis `axis` as `n`.  Then each of the tensors'
+        `n` slices along the axis represent a single observation.
+
+        Passing more than one sample set is enabled to allow splitting a
+        dataset according to both inputs and outputs (for example, a dataset
+        of `n` inputs of shape `(256, 256)` as matrices and `n` 1-dimensional
+        outputs as labels).  However, this is generalised to enable passing an
+        arbitrary number of parts of observations in a sample.
+
+    size : (m,) array, optional
+        Weighted sizes of the resulting subsamples.  The resulting subsamples'
+        sizes are computed by rounding the values of
+        `size / numpy.sum(size) * n` so that the sum equals to `n`.
+
+    axis : int, optional
+        Axis along which the observations are joined into the tensors in `Xs`.
+        If `axis` is negative, it counts from the last to the first axis, -1
+        being the last.
+
+    diff_weights : None or array_like, optional
+        If provided, it must be broadcastable to an array of shape `(k, m)`,
+        where `k` is the number of tensors in `Xs` and `m` is the number of
+        sizes in `size`.  The element of the `(m, k)`-array at position
+        `(i, j)` represents the normalised difference of the subsample's
+        variance and the original sample's variance.  The normalised difference
+        is computed as `(v - v0) / max(v0, 1)`, where `v` is the subsample's
+        (subsample of the `j`-th size extracted from the `i`-th tensor)
+        variance and `v0` is the original sample's (the `i`-th tensor)
+        variance.  The mean of squared normalised differences is then computed
+        and minimalised through the algorithm.  If `diff_weights` is provided
+        (if it is not `None`), the weighted average is used where
+        `diff_weights` are the weights.
+
+        **Note.** True sample variances are used, meaning the result of the
+        `tensor_var` function is divided by the number of observations
+        decremented by 1.
+
+    random_state : None or numpy.random.RandomState, optional
+        Random state of the algorithm (for reproducibility of results).
+
+    return_ind : boolean, optional
+        If true, indices of the subsample (in the original sample) are returned
+        as well.
+
+    kwargs
+        Optional keyword arguments for `scipy.optimize.minimize` function.
+
+    Raises
+    ------
+    ValueError
+        If `Xs` is empty or the tensors are not of the same size along the axis
+        `axis`.
+
+    Returns
+    -------
+    subsamples : tuple of tuple of numpy.ndarray
+        Tuple of tuples of the generated subsamples.  The `j`-th tensor in the
+        `i`-th tuple is a subsample of the `j`-th size extracted from the
+        `i`-th original tensor (sample part), represented as a `numpy.ndarray`.
+
+    ind : tuple of (m,) numpy.ndarray
+        Indices of the returned subsamples in the original samples.  The `j`-th
+        array represents the indices of the subsamples of the `j`-th size.
+
+        *Returned only if `return_ind` is true.*
+
+    See Also
+    --------
+    tensor_var
+    split_sample
+
+    """
+
+    # Prepare parameters.
+
+    Xs = tuple(_np.moveaxis(X, axis, 0) for X in Xs)
+    if not len(Xs) or not all(X.shape[0] == Xs[0].shape[0] for X in Xs):
+        raise ValueError('Either no tensor is provided or they are not of the same size along the provided axis.')
+
+    if diff_weights is None:
+        diff_weights = 1
+    if random_state is None:
+        random_state = _np.random
+
+    size = _np.asarray(size).ravel()
+    size /= _np.flip(_np.flip(size).cumsum())
+
+    m = int(Xs[0].shape[0])
+    n = list()
+    for u in size:
+        n.append(int(round(u * m)))
+        m -= n[-1]
+    del size
+    del m
+    n = _np.array(n, dtype = int)
+    r = _np.concatenate(([0], n.cumsum()))
+
+    v = _np.expand_dims([tensor_var(X) / (X.shape[0] - 1) for X in Xs], 1)
+    vd = _np.maximum(v, 1.0)
+
+    def indices_objective_function (ind):
+        ind = ind.round().astype(int)
+
+        return _np.sum(
+            diff_weights * _np.square(
+                (
+                    [
+                        [
+                            tensor_var(X[ind[r[a]:r[a + 1]]]) / (n[a] - 1)
+                                for a in range(int(n.size))
+                        ] for X in Xs
+                    ] - v
+                ) / vd
+            ),
+            axis = None
+        )
+
+    # Find the optimal split into subsamples.
+    min_ind = _opt.minimize(
+        indices_objective_function,
+        random_state.permutation(Xs[0].shape[0]),
+        bounds = _opt.Bounds(0, Xs[0].shape[0] - 1),
+        constraints = {
+                'type': 'ineq',
+                'fun':
+                    lambda ind: \
+                        _np.diff(_np.sort(ind.round().astype(int))).min()
+            },
+        **kwargs
+    ).x.round().astype(int)
     min_ind = tuple(
         _np.sort(min_ind[r[a]:r[a + 1]]) for a in range(int(n.size))
     )
