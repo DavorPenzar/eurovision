@@ -889,8 +889,6 @@ def split_sample_opt (
     Xs,
     size = [0.70, 0.15, 0.15],
     axis = -1,
-    n_iter = 100,
-    early_stop = 16,
     diff_weights = None,
     random_state = None,
     return_ind = False,
