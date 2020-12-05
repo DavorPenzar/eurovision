@@ -963,7 +963,9 @@ def split_sample_opt (
         decremented by 1.
 
     random_state : None or numpy.random.RandomState, optional
-        Random state of the algorithm (for reproducibility of results).
+        Random state of the algorithm (for reproducibility of results).  This
+        is only used to produce the initial guess for `scipy.optimize.minimize`
+        function.
 
     return_ind : boolean, optional
         If true, indices of the subsample (in the original sample) are returned
