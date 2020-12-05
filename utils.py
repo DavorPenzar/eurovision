@@ -663,7 +663,7 @@ def diverse_sample_opt (
             bounds = _opt.Bounds(0, Y.shape[0] - 1),
             constraints = {
                 'type': 'ineq',
-                'fun':
+                'fun': \
                     lambda ind: \
                         _np.diff(_np.sort(ind.round().astype(int))).min()
             },
@@ -671,15 +671,18 @@ def diverse_sample_opt (
         ).x
     ).round().astype(int)
     max_Z = _np.moveaxis(Y[max_ind], 0, axis)
+    max_var = None
+    if return_var:
+        max_var = tensor_var(max_Z, axis = axis)
 
     # Return computed values.
 
     if return_ind and return_var:
-        return (max_ind, max_Z, tensor_var(max_Z, axis = axis))
+        return (max_ind, max_Z, max_var)
     if return_ind:
         return (max_ind, max_Z)
     if return_var:
-        return (max_Z, tensor_var(max_Z, axis = axis))
+        return (max_Z, max_var)
 
     return max_Z
 
@@ -1046,7 +1049,7 @@ def split_sample_opt (
         bounds = _opt.Bounds(0, Xs[0].shape[0] - 1),
         constraints = {
                 'type': 'ineq',
-                'fun':
+                'fun': \
                     lambda ind: \
                         _np.diff(_np.sort(ind.round().astype(int))).min()
             },
