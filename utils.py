@@ -592,7 +592,9 @@ def diverse_sample_opt (
 
     Unlike `diverse_sample` function, this function does not produce many
     random samples in order to find the optimal one; rather, it uses
-    `scipy.optimize.minize` function for the optimisation.
+    `scipy.optimize.minize` function for the optimisation.  However, this
+    approach (as used in this function) may be suboptimal since the underlying
+    domain (choice of indices) is descrete (non-continuous).
 
     Parameters
     ----------
@@ -915,8 +917,9 @@ def split_sample_opt (
     Unlike `diverse_sample` function, this function does not produce many
     random samples in order to find the optimal one; rather, it uses
     `scipy.optimize.minize` function for the optimisation.  However, this
-    approach (as used in this function) may be worse since a permutation of the
-    array `list(range(0, n))` instead of its (sub)sample.
+    approach (as used in this function) may be subotpimal since the underlying
+    domain is discrete (non-continuous) and a permutation of the array
+    `list(range(0, n))` instead of its (sub)sample is seeked.
 
     Parameters
     ----------
