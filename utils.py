@@ -7,7 +7,7 @@ Utilities for preparation of the dataset of songs.
 
 # Import SciPy packages.
 import numpy as _np
-import scipy.optimize as _opt
+import scipy.optimize as _spo
 
 # Import TensorLy.
 import tensorly as _tl
@@ -18,6 +18,9 @@ import tensorly.tenalg as _tla
 import librosa as _lr
 
 # Define custom functions.
+
+
+##  AUDIO MANIPULATION
 
 def compute_params (**params):
     """
@@ -42,10 +45,17 @@ def compute_params (**params):
     params : dict
         Input parameter `params` updated with the computed values.
 
+    See Also
+    librosa.effects.hpss
+    librosa.feature.chroma_cqt
+    librosa.feature.tempogram
+    librosa.feature.mfcc
+    librosa.feature.delta
+
     """
 
     # Get the sample rate.
-    sr = int(params.get('sr', 22050))
+    sr = params.get('sr', 22050)
     if sr <= 0:
         sr = 1
 
@@ -62,13 +72,13 @@ def compute_params (**params):
         # while kernel_size < 3 or not (kernel_size % 2)
         kernel_size += 1
 
-    width = int(round(float(kernel_size + 1) / 4.0)) + 1
-    while width < 3 or not (width & 1): # while width < 3 or not (width % 2)
-        width += 1
-
     win_length = int(round(10.0 * sr / hop_length))
     if win_length <= 0:
         win_length = 1
+
+    width = int(round(float(kernel_size + 1) / 4.0)) + 1
+    while width < 3 or not (width & 1): # while width < 3 or not (width % 2)
+        width += 1
 
     # Update `params`.
     params.update(
@@ -76,8 +86,8 @@ def compute_params (**params):
             'sr': sr,
             'hop_length': hop_length,
             'kernel_size': kernel_size,
-            'width': width,
-            'win_length': win_length
+            'win_length': win_length,
+            'width': width
         }
     )
 
@@ -157,6 +167,16 @@ def process_song (
         MFCC and MFCC delta features.  The first slice along the third axis is
         the MFCC matrix and the second slice is the MFCC delta matrix.
 
+    See Also
+    --------
+    librosa.load
+    librosa.effects.hpss
+    librosa.feature.chroma_cqt
+    librosa.feature.tempogram
+    librosa.feature.mfcc
+    librosa.feature.delta
+    compute_params
+
     """
 
     # Read the raw song.
@@ -215,22 +235,20 @@ def process_song (
 
     # Return computed features.
 
-    if return_y and return_sr:
-        return (
-            y,
-            params['sr'],
-            y_harmonic,
-            y_percussive,
-            chromagram,
-            tempogram,
-            mfcc
-        )
+    ret = list()
     if return_y:
-        return (y, y_harmonic, y_percussive, chromagram, tempogram, mfcc)
-    if return_sr:
-        return (params['sr'], chromagram, tempogram, mfcc)
+        ret.append(y)
+        if return_sr:
+            ret.append(params['sr'])
+        ret.append(y_harmonic)
+        ret.append(y_percussive)
+    elif return_sr:
+        ret.append(params['sr'])
+    ret.append(chromagram)
+    ret.append(tempogram)
+    ret.append(mfcc)
 
-    return (chromagram, tempogram, mfcc)
+    return tuple(ret)
 
 def as_audio (y):
     """
@@ -246,7 +264,7 @@ def as_audio (y):
 
     Returns
     -------
-    audio : numpy.ndarray
+    numpy.ndarray
         Output audio data.  Array of integral values from [-32768, 32767]
         corresponding to input time series.
 
@@ -254,6 +272,9 @@ def as_audio (y):
 
     return (0o77777 * _np.asarray(y)).round().astype(_np.int16)
         # (32767 * _np.asarray(y)).round().astype(_np.int16)
+
+
+##  TENSOR VARIANCE
 
 def tensor_var (Y, axis = -1):
     """
@@ -291,7 +312,7 @@ def tensor_var (Y, axis = -1):
 
     Returns
     -------
-    Var : float
+    float
         Square of the Frobenius norm of the tensor $ Y - \bar{Y} $.  This value
         can be considered as the total variance of the sample, multiplied by
         `n` minus the degrees of freedom.
@@ -343,7 +364,7 @@ def tensor_var_vec (Y, axis = -1, **kwargs):
 
     Returns
     -------
-    cov : (M, M) numpy.ndarray
+    (M, M) numpy.ndarray
         Covariance matrix of the `axis`-mode unfolding of the tensor `Y` with
         observations being the rows.  This matrix can be considered as the
         covariance matrix of the sample, and its trace as the total variance.
@@ -362,7 +383,7 @@ def tensor_var_vec (Y, axis = -1, **kwargs):
         **kwargs
     )
 
-def tensor_var_svd (Y, axis = -1, return_d = False, **kwargs):
+def tensor_var_svd (Y, axis = -1, return_d = False, tucker_kwargs = dict()):
     """
     Compute variance of a sample arranged in a tensor.
 
@@ -398,9 +419,9 @@ def tensor_var_svd (Y, axis = -1, return_d = False, **kwargs):
         If true, the decomposition of the tensor $ Y - \bar{Y} $ is returned as
         well.
   
-    kwargs
+    kwargs : dict, optional
         Optional keyword arguments for `tensorly.decomposition.tucker`
-        function.
+        function (except parameter `tensor`).
 
     Returns
     -------
@@ -428,7 +449,10 @@ def tensor_var_svd (Y, axis = -1, return_d = False, **kwargs):
     """
 
     # Compute the decomposition of `Y` - `mean(Y)`.
-    S, U = _tld.tucker(Y - _np.mean(Y, axis = axis, keepdims = True), **kwargs)
+    S, U = _tld.tucker(
+        Y - _np.mean(Y, axis = axis, keepdims = True),
+        **tucker_kwargs
+    )
 
     # Compute variances (squares of `axis`-mode singular values).
     sv2 = _np.array(
@@ -440,10 +464,276 @@ def tensor_var_svd (Y, axis = -1, return_d = False, **kwargs):
 
     # Return computed arrays.
 
+    ret = list()
     if return_d:
-        return (S, U, sv2)
+        ret.append(S)
+        ret.append(U)
+    ret.append(sv2)
 
-    return sv2
+    return ret[0] if len(ret) == 1 else tuple(ret)
+
+
+##  TENSOR SAMPLES
+
+def _truncate_indices (a, ind, axis = -1):
+    """
+    Truncate non-negative 1-dimensional indices to fit indexing of an array.
+
+    The function assumes 1-dimensional indices and returns them truncated into
+    range [0, `m`) for `m` being the length of a given array.  If any index is
+    negative, it is truncated to 0.
+
+    Parameters
+    ----------
+    a : (m, ...) array_like
+        Input array.
+
+    ind : (n,) array_like
+        1-dimensional array of non-negative indices.
+
+    Returns
+    -------
+    (n,) numpy.ndarray
+        1-dimensional array of the same size as `ind` with values from `ind`
+        truncated into range [0, `m`) (actually, range [0, `m` - 1]).
+
+    Notes
+    -----
+    Reduced flexibility of the function (restrictions on the indexing axis, the
+    sign and the dimensionality of the index) is intentional since the function
+    is not intended to be used outsie of the library.  The function is, in
+    fact, merely an auxiliary internal function.
+
+    See Also
+    --------
+    numpy.round
+
+    """
+
+    return _np.minimum(
+        0,
+        _np.maximum(_np.asarray(ind).ravel(), _np.asarray(a).shape[0] - 1)
+    )
+
+def _round_indices (ind):
+    """
+    Round real-valued 1-dimensional indices to nearest integers.
+
+    The function assumes 1-dimensional indices and returns them rounded to
+    nearest integral indices.  The rounding is computed using `numpy.round`
+    function.
+
+    Parameters
+    ----------
+    ind : (n,) array_like
+        1-dimensional array of real-valued indices.
+
+    Returns
+    -------
+    (n,) numpy.ndarray
+        1-dimensional array of the same size as `ind` with values from `ind`
+        rounded to nearest integers.  The data type (`dtype`) of the array is
+        an integral data type.
+
+    Notes
+    -----
+    Reduced flexibility of the function (restriction on the the dimensionality
+    of the index) is intentional since the function is not intended to be used
+    outsie of the library.  The function is, in fact, merely an auxiliary
+    internal function.
+
+    See Also
+    --------
+    numpy.round
+
+    """
+
+    return _np.round(ind).ravel().astype(_np.integer)
+
+def _minimal_integral_index_difference (ind):
+    """
+    Compute the minimal difference of real non-negative indices rounded to nearest integers.
+
+    The function assumes non-negative 1-dimensional indices and returns the
+    minimal absolute difference between their values rounded to nearest
+    integers.  The rounding is computed using `_round_indices` function.  The
+    differences are not only computed between consecutive indices but between
+    each pair.
+
+    Parameters
+    ----------
+    ind : (n,) array_like
+        1-dimensional array of real-valued non-negative indices.
+
+    Returns
+    -------
+    int
+        The minimal absolute difference of values in `ind` rounded to nearest
+        integers.
+
+    Notes
+    -----
+    Reduced flexibility of the function (restrictions on the the sign and the
+    dimensionality of the index) is intentional since the function is not
+    intended to be used outsie of the library.  The function is, in fact,
+    merely an auxiliary internal function.
+
+    See Also
+    --------
+    _round_indices
+
+    """
+
+    return _np.diff(_np.sort(_round_indices(ind))).min()
+
+def _interpolating_indexed_array (a, ind):
+    """
+    Index an array along its first axis with non-integral indices by interpolating its values.
+
+    The interpolation method is a linear spline.  An element at position
+    `n + q`, where `n` is an integer and `q` is a real number such that
+    `0 <= q < 1` is computed as `a[n] + q * (a[n + 1] - a[n])` (the case when
+    `n` is the last index and `q == 0` is also handled successfully).
+
+    Parameters
+    ----------
+    a : (m, ...) array_like
+        Input array.
+
+    ind : (n,) array_like
+        1-dimensional array of real-valued indices.  Both
+        `numpy.floor(ind).astype(int)` and `numpy.ceil(ind).astype(int)` must
+        be valid indices (positive or negative) for the array `a` along the
+        first axis.
+
+    Returns
+    -------
+    (n, ...) numpy.ndarray
+        Array constructed from the values of the input array `a` and the
+        indexing array `ind` along the first axis by generating values at
+        non-existing indices through interpolation of the input array `a`.
+
+    Notes
+    -----
+    If both `a` and `ind` are integral-valued arrays (of an integral data type
+    (`dtype`)), the resulting array will also be integral-valued; otherwise its
+    data type (`dtype`) will be of a floating point type (real or complex,
+    according to values in `a`).  However, regardless if `a` or `ind` are
+    integral-valued or not, the size of the output array's data type (`dtype`)
+    may increase (for instance, from `numpy.int16` to `numpy.int32` or from
+    `numpy.complex64` to `numpy.complex128`).
+
+    Reduced flexibility of the function (restrictions on the indexing axis and
+    the dimensionality of the index) is intentional since the function is not
+    intended to be used outsie of the library.  The function is, in fact,
+    merely an auxiliary internal function.
+
+    See Also
+    --------
+    numpy.floor
+    numpy.ceil
+    _truncate_indices
+
+    """
+
+    # Prepare parameters.
+    a = _np.asarray(a)
+    ind = _np.asarry(ind).ravel()
+
+    # Compute auxiliary indices.
+    floor_ind = _np.floor(ind).astype(_np.integer)
+    ceil_ind = _np.ceil(ind).astype(_np.integer)
+    frac_ind = ind - floor_ind
+    while frac_ind.ndim < a.ndim:
+        frac_ind = _np.expand_dims(frac_ind, frac_ind.ndim)
+
+    # Compute and return the resulting array.
+    return a[floor_ind] + frac_ind * (a[ceil_ind] - a[floor_ind])
+
+def _index_optimisation_bounds (a):
+    """
+    Generate bounds for the optimisation of non-negative indices of an array along the first axis.
+
+    The result of the function can be used for bounds in `scipy.optimize`
+    algorithms, such as the parameter `bounds` of `scipy.optimize.minimize`
+    function.
+
+    Parameters
+    ----------
+    a : array_like
+        The original array whose indices should be optimised.
+
+    Returns
+    -------
+    scipy.optimize.Bounds
+        Bounds for the optimisation of indices of the array `a`.  The lower
+        bound is 0 and the upper bound is `a.shape[0]` - 1.
+
+    Notes
+    -----
+    Reduced flexibility of the function (restrictions on the indexing axis and
+    the dimensionality of the index) is intentional since the function is not
+    intended to be used outsie of the library.  The function is, in fact,
+    merely an auxiliary internal function.
+
+    See Also
+    --------
+    scipy.optimize.minimize
+
+    """
+
+    return _spo.Bounds(0, _np.asarray(a).shape[0] - 1)
+
+def _index_optimisation_constraint (**kwargs):
+    """
+    Generate constraint for the optimisation of non-negative indices of an array along a single axis.
+
+    The result of the function can be used for constraints in `scipy.optimize`
+    algorithms, such as the parameter `constraints` of
+    `scipy.optimize.minimize` function.
+
+    The constraint assumes non-negative 1-dimensional indices, evaluates them
+    using `_minimal_integral_index_difference` function (parameter `fun` of the
+    constraint), and checks if the value is in range [1, inf) (parameters `lb`
+    and `ub` of the constraint respectively).  For instance, indices
+    `[0.49, 0.51]` would be accepted since they would be rounded to integral
+    indices `[0, 1]`, but indices `[0.51, 1.49]` would be rejected because they
+    would be rounded to integral indices `[1, 1]`.
+
+    Parameters
+    ----------
+    kwargs
+        Optional keyword arguments for `scipy.optimize.NonlinearConstraint`
+        function.
+
+    Returns
+    -------
+    scipy.optimize.NonlinearConstraint
+        Constraint for the optimisation of indices of an array.  It evaluates
+        the indices as the minimal absolute difference between their values
+        rounded to nearest integers, and compares the result to lower bound 1
+        and upper bound `inf`.
+
+    Notes
+    -----
+    Reduced flexibility of the function (restrictions on the sign and the
+    dimensionality of the index) is intentional since the function is not
+    intended to be used outsie of the library.  The function is, in fact,
+    merely an auxiliary internal function.
+
+    See Also
+    --------
+    scipy.optimize.minimize
+    _minimal_integral_index_difference
+
+    """
+
+    return _spo.NonlinearConstraint(
+        _minimal_integral_index_difference,
+        1,
+        float('inf'),
+        **kwargs
+    )
 
 def diverse_sample (
     Y,
@@ -453,7 +743,8 @@ def diverse_sample (
     early_stop = 16,
     random_state = None,
     return_ind = False,
-    return_var = False
+    return_var = False,
+    return_nit = False
 ):
     """
     Generate a sample as diverse as possible.
@@ -499,8 +790,11 @@ def diverse_sample (
         If true, indices of the subsample (in the original sample) are returned
         as well.
 
-    return_var : boolean : optional
+    return_var : boolean, optional
         If true, variance of the subsample is returned as well.
+
+    return_nit : boolean, optional
+        If true, number of iterations run is returned as well.
 
     Returns
     -------
@@ -518,10 +812,16 @@ def diverse_sample (
 
         *Returned only if `return_var` is true.*
 
+    nit : int
+        Number of iterations run.
+
+        *Returned only if `return_nit` is true.*
+
     See also
     --------
     tensor_var
-    diverse_sample_opt
+    diverse_sample_optd
+    diverse_sample_optc
 
     """
 
@@ -541,8 +841,9 @@ def diverse_sample (
 
     # Iteratively find the most diverse subsample.
 
+    nit = 0
     j = 0
-    for i in range(n_iter):
+    for nit in range(n_iter):
         # Check if no improvement has happend in the last `early_stop`
         # iterations.
         if j >= early_stop:
@@ -565,23 +866,26 @@ def diverse_sample (
 
     # Return computed values.
 
-    if return_ind and return_var:
-        return (max_ind, max_Z, max_var)
+    ret = list()
     if return_ind:
-        return (max_ind, max_Z)
+        ret.append(max_ind)
+    ret.append(max_Z)
     if return_var:
-        return (max_Z, max_var)
+        ret.append(max_var)
+    if return_nit:
+        ret.append(nit)
 
-    return max_Z
+    return ret[0] if len(ret) == 1 else tuple(ret)
 
-def diverse_sample_opt (
+def diverse_sample_optd (
     Y,
     size,
     axis = -1,
     random_state = None,
     return_ind = False,
-    return_var = False,
-    **kwargs
+    return_raw = False,
+    constraint_kwargs = dict(),
+    optimize_kwargs = dict()
 ):
     """
     Generate a sample as diverse as possible.
@@ -592,9 +896,11 @@ def diverse_sample_opt (
 
     Unlike `diverse_sample` function, this function does not produce many
     random samples in order to find the optimal one; rather, it uses
-    `scipy.optimize.minize` function for the optimisation.  However, this
-    approach (as used in this function) may be suboptimal since the underlying
-    domain (choice of indices) is descrete (non-continuous).
+    `scipy.optimize.minize` function for the optimisation.  However, unlike
+    `diverse_sample_optc` function, at each step it rounds the indices to
+    nearest integers and then checks the variance.  The optimisation-based
+    approach may be suboptimal since the underlying domain (choice of indices)
+    is descrete.
 
     Parameters
     ----------
@@ -619,13 +925,24 @@ def diverse_sample_opt (
 
     return_ind : boolean, optional
         If true, indices of the subsample (in the original sample) are returned
-        as well.
+        as well.  Check *Notes* to see how the result is transformed into
+        actual indices.
 
-    return_var : boolean : optional
-        If true, variance of the subsample is returned as well.
+    return_raw : boolean, optional
+        If true, the raw result of `scipy.optimize.minimize` function call is
+        returned as well.
 
-    kwargs
-        Optional keyword arguments for `scipy.optimize.minimize` function.
+    constraint_kwargs : dict, optional
+        Optional keyword arguments for `scipy.optimize.NonlinearConstraint`
+        class (except parameters `fun`, `lb` and `ub`).  The non-linear
+        constraint is used to check if any pair of indices (not necessarily
+        integral) rounds to the nearest integer.  This is done by rounding the
+        indices, computing the minimal absolute difference between the values
+        and checking if it is greater than or equal to 1.
+
+    optimize_kwargs : dict, optional
+        Optional keyword arguments for `scipy.optimize.minimize` function
+        (except parameters `fun`, `x0`, `args`, `bounds` and `constraints`).
 
     Returns
     -------
@@ -637,16 +954,31 @@ def diverse_sample_opt (
     Z : (m1, m2, ..., size, ..., mk) numpy.ndarray
         The most diverse sample found.
 
-    var : float
-        Variance of the returned sample multiplied by `size` minus the degrees
-        of freedom.
+    raw : scipy.optimize.OptimizeResult
+        The result of `scipy.optimize.minimze` function call.
 
-        *Returned only if `return_var` is true.*
+        *Returned only if `return_raw` is true.*
+
+    Notes
+    -----
+    The result of the optimisation (returned value `raw`) is converted to an
+    actual index-array by rounding values of `raw.x` to integers using
+    `numpy.round` function and truncating them to fit into range
+    [0, `a.shape(axis)`) (also, they are sorted in the end).  This is done
+    regardless of the value of `raw.success`, meaning the indices may not be in
+    fact optimised.  As a result, it is not guaranteed that all indices are
+    mutually different and the user is advised to check the returned values
+    themselves.
 
     See also
     --------
+    scipy.optimize.NonlinearConstraint
+    scipy.optimize.minimize
+    scipy.optimize.OptimizeResult
+    numpy.round
     tensor_var
     diverse_sample
+    diverse_sample_optc
 
     """
 
@@ -658,35 +990,302 @@ def diverse_sample_opt (
         random_state = _np.random
 
     # Find the most diverse subsample.
-    max_ind = _np.sort(
-        _opt.minimize(
-            lambda ind: -tensor_var(Y[ind.round().astype(int)], axis = 0),
-            random_state.choice(Y.shape[0], size, replace = False),
-            bounds = _opt.Bounds(0, Y.shape[0] - 1),
-            constraints = {
-                'type': 'ineq',
-                'fun': \
-                    lambda ind: \
-                        _np.diff(_np.sort(ind.round().astype(int))).min()
-            },
-            **kwargs
-        ).x
-    ).round().astype(int)
+    res = _spo.minimize(
+        lambda ind: -tensor_var(
+            Y[_round_indices(_truncate_indices(ind, Y))],
+            axis = 0
+        ),
+        random_state.choice(Y.shape[0], size, replace = False),
+        tuple(),
+        bounds = _index_optimisation_bounds(Y),
+        constraints = _index_optimisation_constraint(**constraint_kwargs),
+        **optimize_kwargs
+    )
+    max_ind = _round_indices(_truncate_indices(Y, res.x))
     max_Z = _np.moveaxis(Y[max_ind], 0, axis)
-    max_var = None
-    if return_var:
-        max_var = tensor_var(max_Z, axis = axis)
 
     # Return computed values.
 
-    if return_ind and return_var:
-        return (max_ind, max_Z, max_var)
+    ret = list()
     if return_ind:
-        return (max_ind, max_Z)
-    if return_var:
-        return (max_Z, max_var)
+        ret.append(max_ind)
+    ret.append(max_Z)
+    if return_raw:
+        ret.append(res)
 
-    return max_Z
+    return ret[0] if len(ret) == 1 else tuple(ret)
+
+def diverse_sample_optc (
+    Y,
+    size,
+    axis = -1,
+    random_state = None,
+    return_ind = False,
+    return_raw = False,
+    constraint_kwargs = dict(),
+    optimize_kwargs = dict()
+):
+    """
+    Generate a sample as diverse as possible.
+
+    Diversity of a sample is measured by its variance (greater variance means
+    greater diversity).  Variance of a tensor-shaped sample is computed using
+    `tensor_var` function.
+
+    Unlike `diverse_sample` function, this function does not produce many
+    random samples in order to find the optimal one; rather, it uses
+    `scipy.optimize.minize` function for the optimisation.  However, unlike
+    `diverse_sample_optd` function, the indices are not rounded until the end
+    of the optimisation but samples are generated from non-integral indices
+    through interpolation of the values from the original tensor using a linear
+    spline.  This may be valid approach if the original tensor represents a
+    relatively dense discretisation of a smooth function (progression of
+    values), but the optimisation-based approach may still be suboptimal since
+    the underlying domain (choice of indices) is descrete.
+
+    Parameters
+    ----------
+    Y : (m1, m2, ..., n, ..., mk) array
+        Sample of observations in the shape of a tensor.  Let us denote the
+        size of the tensor `Y` along the axis `axis` (see parameter below) as
+        `n`.  Then each of the tensor `Y`'s `n` slices along the axis
+        represents a single observation.
+
+    size : int
+        Size of the sample of `Y` to generate.  It is assumed that `size` > 1.
+
+    axis : int, optional
+        Axis along which the observations are joined into the tensor `Y`. If
+        `axis` is negative, it counts from the last to the first axis, -1 being
+        the last.
+
+    random_state : None or numpy.random.RandomState, optional
+        Random state of the algorithm (for reproducibility of results).  This
+        is only used to produce the initial guess for `scipy.optimize.minimize`
+        function.
+
+    return_ind : boolean, optional
+        If true, indices of the subsample (in the original sample) are returned
+        as well.  Check *Notes* to see how the result is transformed into
+        actual indices.
+
+    return_raw : boolean, optional
+        If true, the raw result of `scipy.optimize.minimize` function call is
+        returned as well.
+
+    constraint_kwargs : dict, optional
+        Optional keyword arguments for `scipy.optimize.NonlinearConstraint`
+        class (except parameters `fun`, `lb` and `ub`).  The non-linear
+        constraint is used to check if any pair of indices (not necessarily
+        integral) rounds to the nearest integer.  This is done by rounding the
+        indices, computing the minimal absolute difference between the values
+        and checking if it is greater than or equal to 1.
+
+    optimize_kwargs : dict, optional
+        Optional keyword arguments for `scipy.optimize.minimize` function
+        (except parameters `fun`, `x0`, `args`, `bounds` and `constraints`).
+
+    Returns
+    -------
+    ind : (size,) numpy.ndarray
+        Indices of the returned sample in the original sample.
+
+        *Returned only if `return_ind` is true.*
+
+    Z : (m1, m2, ..., size, ..., mk) numpy.ndarray
+        The most diverse sample found.
+
+    raw : scipy.optimize.OptimizeResult
+        The result of `scipy.optimize.minimze` function call.
+
+        *Returned only if `return_raw` is true.*
+
+    Notes
+    -----
+    The result of the optimisation (returned value `raw`) is converted to an
+    actual index-array by rounding values of `raw.x` to integers using
+    `numpy.round` function and truncating them to fit into range
+    [0, `a.shape(axis)`) (also, they are sorted in the end).  This is done
+    regardless of the value of `raw.success`, meaning the indices may not be in
+    fact optimised.  As a result, it is not guaranteed that all indices are
+    mutually different and the user is advised to check the returned values
+    themselves.
+
+    See also
+    --------
+    scipy.optimize.NonlinearConstraint
+    scipy.optimize.minimize
+    scipy.optimize.OptimizeResult
+    numpy.round
+    tensor_var
+    diverse_sample
+    diverse_sample_optd
+
+    """
+
+    # Prepare parameters.
+
+    Y = _np.moveaxis(Y, axis, 0)
+
+    if random_state is None:
+        random_state = _np.random
+
+    # Find the most diverse subsample.
+    res = _spo.minimize(
+        lambda ind: -tensor_var(
+            _interpolating_indexed_array(Y, _truncate_indices(Y, ind)),
+            axis = 0
+        ),
+        random_state.choice(Y.shape[0], size, replace = False),
+        bounds = _index_optimisation_bounds(Y),
+        constraints = _index_optimisation_constraint(**constraint_kwargs),
+        **optimize_kwargs
+    )
+    max_ind = _round_indices(_truncate_indices(Y, res.x))
+    max_Z = _np.moveaxis(Y[max_ind], 0, axis)
+
+    # Return computed values.
+
+    ret = list()
+    if return_ind:
+        ret.append(max_ind)
+    ret.append(max_Z)
+    if return_raw:
+        ret.append(res)
+
+    return ret[0] if len(ret) == 1 else tuple(ret)
+
+### Sample splitting
+
+def _compute_absolute_subsample_sizes (total, size):
+    """
+    """
+
+    # Compute cummulative relative sizes.
+    size = _np.asarray(size).ravel()
+    size = size / _np.flip(_np.flip(size).cumsum())
+
+    # Compute absolute sizes and borders.
+    n = list()
+    for u in size:
+        n.append(round(u * total))
+        total -= n[-1]
+    del size
+    n = _np.array(n, dtype = _np.integer)
+    r = _np.concatenate(([0], n.cumsum()))
+
+    # Return computed arrays.
+    return (n, r)
+
+def _samples_variance_difference (Xs, var, var_dn, sizes, borders, ind):
+    """
+    Compute differences in variances between subsamples and the original (total) tensor sample along the first axis.
+
+    Given an iterable `Xs` of samples (see parameter below) aranged in tensors
+    all of which are of the same size along the first axis, and a permutation
+    `ind` of its indices along the first axis (see parameter below), along with
+    a few additional parameters, a matrix of differences in variances between
+    subsamples and the original samples is computed and returned.
+
+    Let `k` be the number of tensors in `Xs` and `m` the number of subsamples
+    for each `X` in `Xs` (length of the array `sizes`).
+    sizes in `size`.  The element of the `(m, k)`-array at position
+    `(i, j)` represents the normalised difference of the subsample's
+    variance and the original sample's variance.  The normalised difference
+    is computed as `(v - v0) / max(v0, 1)`, where `v` is the subsample's
+    (subsample of the `j`-th size extracted from the `i`-th tensor)
+    variance and `v0` is the original sample's (the `i`-th tensor)
+    variance.  The mean of squared normalised differences is then computed
+    and minimalised through the algorithm.  If `diff_weights` is provided
+    (if it is not `None`), the weighted average is used where
+    `diff_weights` are the weights.
+
+    **Note.** True sample variances are used, meaning the result of the
+    `tensor_var` function is divided by the number of observations
+    decremented by 1.
+
+    Parameters
+    ----------
+    Xs : iterable of (n, ...) array_like
+        Original samples in the form of tensors, all of which are of the same
+        size along the first axis.  Let us denote the number of tensors in `Xs`
+        as `m` and the size of the tensors along the first `axis` as `n`.  Then
+        each of the tensors' `n` slices along the axis represent a single
+        observation.
+
+    var : (m,) array_like
+        Variances of tensors in `Xs`.  The variances must be **true**
+        variances, meaning `var[i]` should be
+        `tensor_var(Xs[i], axis = 0) / (m - 1)` (the result of `tensor_var`
+        function evaluated at the `i`-th tensor divided by the length of the
+        tensor minus 1).
+
+    var_dn : (m,) array_like
+        *Variances* of tensors in `Xs` used for division.  This parameter
+        should be `numpy.maximum(var, 1)`.
+
+    sizes : (k,) array_like
+        1-dimensional integral-valued array of sizes of subsamples such that
+        each size is greater than or equal to 2 and that
+        `numpy.sum(sizes) == n`.
+
+    borders : (k + 1,) array_like
+        1-dimensional array of integral-valued border-indices for subsamples.
+        The following equalities should be satisfied: `borders[0] == 0`,
+        `borders[-1] == n` and `numpy.array_equal(numpy.diff(borders), sizes)`.
+
+    ind : (n,) array_like
+        1-dimensional array of integral-valued indices to extract subsamples.
+        This parameter should actually be a permutation of `list(range(m))`
+        (all of the legal indices for tensors along their first axis with no
+        duplicates).
+
+    Returns
+    -------
+    (k, m) numpy.ndarray
+        A real-valued matrix such that the element at position `(i, j)`
+        represents the normalised difference of the `i`-th subsample's of the
+        `j`-th tensor variance and the original sample's (`j`-th tensor's)
+        variance.  The difference is **not** absolute, it may be negative or
+        positive.
+
+    Notes
+    -----
+    The `i`-th subsample of the `j`-tensor is actually
+    `Xs[j][ind[borders[i]:borders[i + 1]]]`.  That is, the index `ind` is
+    divided into parts of sizes provided through the parameter `sizes`, and its
+    `i`-th part is used as indices for the `i`-th subsamples.  To extract the
+    `i`-th subsample of the `j`-th tensor, this part of indices is then applied
+    to the `j`-th tensor.
+
+    The normalised variance of a subsample is computed by subtracting the
+    original sample's variance from the subsample's variance, and dividing the
+    difference by `max(var[j], 1)` (`var[j]` is the variance of the `j`-th
+    tensor).  The variances are true variances, menaning the result of
+    `tensor_var` function is divided by the appropriate tensor's (original or
+    the subsample) length.
+
+    Reduced flexibility of the function (restrictions on the indexing axis) is
+    intentional since the function is not intended to be used outsie of the
+    library.  The function is, in fact, merely an auxiliary internal function.
+
+    See Also
+    --------
+    numpy.diff
+    numpy.array_equal
+    tensor_var
+
+    """
+
+    return (
+        [
+            [
+                tensor_var(_np.asarray(X)[ind[borders[a]:borders[a + 1]]]) /
+                        (sizes[a] - 1)
+                    for a in range(int(sizes.size))
+            ] for X in Xs
+        ] - _np.asarray(var)
+    ) / var_dn
 
 def split_sample (
     Xs,
@@ -696,7 +1295,8 @@ def split_sample (
     early_stop = 16,
     diff_weights = None,
     random_state = None,
-    return_ind = False
+    return_ind = False,
+    return_nit = False
 ):
     """
     Split a sample by preserving variance.
@@ -711,7 +1311,7 @@ def split_sample (
     samples in `Xs` are of size 11, and `size` is `[0.5, 0.5]`, subsamples of
     sizes 6, 5 are generated.
 
-    Actually, all given `sizes` are treated as positive weights, therefore
+    Actually, all given `sizes` are treated as positive weights, therefore,
     given an array of sizes `[2, 3, 5]`, the resulting subsamples may not be of
     actual sizes 2, 3 and 5, but 0.2, 0.3 and 0.5 times the size of the
     original sample.
@@ -737,7 +1337,7 @@ def split_sample (
         outputs as labels).  However, this is generalised to enable passing an
         arbitrary number of parts of observations in a sample.
 
-    size : (m,) array, optional
+    size : (m,) array_like, optional
         Weighted sizes of the resulting subsamples.  The resulting subsamples'
         sizes are computed by rounding the values of
         `size / numpy.sum(size) * n` so that the sum equals to `n`.
@@ -780,11 +1380,8 @@ def split_sample (
         If true, indices of the subsample (in the original sample) are returned
         as well.
 
-    Raises
-    ------
-    ValueError
-        If `Xs` is empty or the tensors are not of the same size along the axis
-        `axis`.
+    return_nit : boolean, optional
+        If true, number of iterations run is returned as well.
 
     Returns
     -------
@@ -799,10 +1396,22 @@ def split_sample (
 
         *Returned only if `return_ind` is true.*
 
+    nit : int
+        Number of iterations run.
+
+        *Returned only if `return_nit` is true.*
+
+    Raises
+    ------
+    ValueError
+        If `Xs` is empty or the tensors are not of the same size along the axis
+        `axis`.
+
     See Also
     --------
     tensor_var
-    split_sample_opt
+    split_sample_optc
+    split_sample_optd
 
     """
 
@@ -819,18 +1428,7 @@ def split_sample (
     if random_state is None:
         random_state = _np.random
 
-    size = _np.asarray(size).ravel()
-    size /= _np.flip(_np.flip(size).cumsum())
-
-    m = int(Xs[0].shape[0])
-    n = list()
-    for u in size:
-        n.append(int(round(u * m)))
-        m -= n[-1]
-    del size
-    del m
-    n = _np.array(n, dtype = int)
-    r = _np.concatenate(([0], n.cumsum()))
+    n, r = _compute_absolute_subsample_sizes(Xs[0].shape[0], size)
 
     v = _np.expand_dims([tensor_var(X) / (X.shape[0] - 1) for X in Xs], 1)
     vd = _np.maximum(v, 1.0)
@@ -842,8 +1440,9 @@ def split_sample (
 
     # Iteratively find the optimal split into subsamples.
 
+    nit = 0
     j = 0
-    for i in range(n_iter):
+    for nit in range(n_iter):
         # Check if no improvement has happend in the last `early_stop`
         # iterations.
         if j >= early_stop:
@@ -853,14 +1452,7 @@ def split_sample (
         ind = random_state.permutation(Xs[0].shape[0])
         d = _np.sum(
             diff_weights * _np.square(
-                (
-                    [
-                        [
-                            tensor_var(X[ind[r[a]:r[a + 1]]]) / (n[a] - 1)
-                                for a in range(int(n.size))
-                        ] for X in Xs
-                    ] - v
-                ) / vd
+                _samples_variance_difference(Xs, v, vd, n, r, ind)
             ),
             axis = None
         )
@@ -882,192 +1474,11 @@ def split_sample (
 
     # Return computed values.
 
+    ret = list()
     if return_ind:
-        return (min_ind, min_Xs)
+        ret.append(min_ind)
+    ret.append(min_Xs)
+    if return_nit:
+        ret.append(nit)
 
-    return min_Xs
-
-def split_sample_opt (
-    Xs,
-    size = [0.70, 0.15, 0.15],
-    axis = -1,
-    diff_weights = None,
-    random_state = None,
-    return_ind = False,
-    **kwargs
-):
-    """
-    Split a sample by preserving variance.
-
-    Given an iterable `Xs` of samples (see parameter below) aranged in tensors
-    all of which are of the same size along the axis `axis` and a 1-dimensional
-    array `size` of subsamples' sizes, the samples are split into subsamples
-    of given sizes along the provided axis by preserving the original variances
-    as closely as possible.  If `size` is an array of weights, such as
-    `[0.5, 0.5]`, actual sizes are first rounded up (if exactly between two
-    integers) by resolving sizes from beginning to end.  For example, if the
-    samples in `Xs` are of size 11, and `size` is `[0.5, 0.5]`, subsamples of
-    sizes 6, 5 are generated.
-
-    Actually, all given `sizes` are treated as positive weights, therefore
-    given an array of sizes `[2, 3, 5]`, the resulting subsamples may not be of
-    actual sizes 2, 3 and 5, but 0.2, 0.3 and 0.5 times the size of the
-    original sample.
-
-    Unlike `diverse_sample` function, this function does not produce many
-    random samples in order to find the optimal one; rather, it uses
-    `scipy.optimize.minize` function for the optimisation.  However, this
-    approach (as used in this function) may be subotpimal since the underlying
-    domain is discrete (non-continuous) and a permutation of the array
-    `list(range(0, n))` instead of its (sub)sample is seeked.
-
-    Parameters
-    ----------
-    Xs : iterable of array_like
-        Original samples in the form of tensors, all of which are of the same
-        size along the axis `axis` (see parameter below).  Let us denote the
-        of the tensors along the axis `axis` as `n`.  Then each of the tensors'
-        `n` slices along the axis represent a single observation.
-
-        Passing more than one sample set is enabled to allow splitting a
-        dataset according to both inputs and outputs (for example, a dataset
-        of `n` inputs of shape `(256, 256)` as matrices and `n` 1-dimensional
-        outputs as labels).  However, this is generalised to enable passing an
-        arbitrary number of parts of observations in a sample.
-
-    size : (m,) array, optional
-        Weighted sizes of the resulting subsamples.  The resulting subsamples'
-        sizes are computed by rounding the values of
-        `size / numpy.sum(size) * n` so that the sum equals to `n`.
-
-    axis : int, optional
-        Axis along which the observations are joined into the tensors in `Xs`.
-        If `axis` is negative, it counts from the last to the first axis, -1
-        being the last.
-
-    diff_weights : None or array_like, optional
-        If provided, it must be broadcastable to an array of shape `(k, m)`,
-        where `k` is the number of tensors in `Xs` and `m` is the number of
-        sizes in `size`.  The element of the `(m, k)`-array at position
-        `(i, j)` represents the normalised difference of the subsample's
-        variance and the original sample's variance.  The normalised difference
-        is computed as `(v - v0) / max(v0, 1)`, where `v` is the subsample's
-        (subsample of the `j`-th size extracted from the `i`-th tensor)
-        variance and `v0` is the original sample's (the `i`-th tensor)
-        variance.  The mean of squared normalised differences is then computed
-        and minimalised through the algorithm.  If `diff_weights` is provided
-        (if it is not `None`), the weighted average is used where
-        `diff_weights` are the weights.
-
-        **Note.** True sample variances are used, meaning the result of the
-        `tensor_var` function is divided by the number of observations
-        decremented by 1.
-
-    random_state : None or numpy.random.RandomState, optional
-        Random state of the algorithm (for reproducibility of results).  This
-        is only used to produce the initial guess for `scipy.optimize.minimize`
-        function.
-
-    return_ind : boolean, optional
-        If true, indices of the subsample (in the original sample) are returned
-        as well.
-
-    kwargs
-        Optional keyword arguments for `scipy.optimize.minimize` function.
-
-    Raises
-    ------
-    ValueError
-        If `Xs` is empty or the tensors are not of the same size along the axis
-        `axis`.
-
-    Returns
-    -------
-    subsamples : tuple of tuple of numpy.ndarray
-        Tuple of tuples of the generated subsamples.  The `j`-th tensor in the
-        `i`-th tuple is a subsample of the `j`-th size extracted from the
-        `i`-th original tensor (sample part), represented as a `numpy.ndarray`.
-
-    ind : tuple of (m,) numpy.ndarray
-        Indices of the returned subsamples in the original samples.  The `j`-th
-        array represents the indices of the subsamples of the `j`-th size.
-
-        *Returned only if `return_ind` is true.*
-
-    See Also
-    --------
-    tensor_var
-    split_sample
-
-    """
-
-    # Prepare parameters.
-
-    Xs = tuple(_np.moveaxis(X, axis, 0) for X in Xs)
-    if not len(Xs) or not all(X.shape[0] == Xs[0].shape[0] for X in Xs):
-        raise ValueError('Either no tensor is provided or they are not of the same size along the provided axis.')
-
-    if diff_weights is None:
-        diff_weights = 1
-    if random_state is None:
-        random_state = _np.random
-
-    size = _np.asarray(size).ravel()
-    size /= _np.flip(_np.flip(size).cumsum())
-
-    m = int(Xs[0].shape[0])
-    n = list()
-    for u in size:
-        n.append(int(round(u * m)))
-        m -= n[-1]
-    del size
-    del m
-    n = _np.array(n, dtype = int)
-    r = _np.concatenate(([0], n.cumsum()))
-
-    v = _np.expand_dims([tensor_var(X) / (X.shape[0] - 1) for X in Xs], 1)
-    vd = _np.maximum(v, 1.0)
-
-    def indices_objective_function (ind):
-        ind = ind.round().astype(int)
-
-        return _np.sum(
-            diff_weights * _np.square(
-                (
-                    [
-                        [
-                            tensor_var(X[ind[r[a]:r[a + 1]]]) / (n[a] - 1)
-                                for a in range(int(n.size))
-                        ] for X in Xs
-                    ] - v
-                ) / vd
-            ),
-            axis = None
-        )
-
-    # Find the optimal split into subsamples.
-    min_ind = _opt.minimize(
-        indices_objective_function,
-        random_state.permutation(Xs[0].shape[0]),
-        bounds = _opt.Bounds(0, Xs[0].shape[0] - 1),
-        constraints = {
-                'type': 'ineq',
-                'fun': \
-                    lambda ind: \
-                        _np.diff(_np.sort(ind.round().astype(int))).min()
-            },
-        **kwargs
-    ).x.round().astype(int)
-    min_ind = tuple(
-        _np.sort(min_ind[r[a]:r[a + 1]]) for a in range(int(n.size))
-    )
-    min_Xs = tuple(
-        tuple(_np.moveaxis(X[I], 0, axis) for I in min_ind) for X in Xs
-    )
-
-    # Return computed values.
-
-    if return_ind:
-        return (min_ind, min_Xs)
-
-    return min_Xs
+    return ret[0] if len(ret) == 1 else tuple(ret)
