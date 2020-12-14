@@ -42,7 +42,7 @@ def compute_params (**params):
 
     Returns
     -------
-    params : dict
+    dict
         Input parameter `params` updated with the computed values.
 
     See Also
@@ -510,9 +510,19 @@ def _truncate_indices (a, ind, axis = -1):
 
     """
 
-    return _np.minimum(
-        0,
-        _np.maximum(_np.asarray(ind).ravel(), _np.asarray(a).shape[0] - 1)
+    # Prepare parameters.
+    a = _np.asarray(a)
+    ind = _np.asarray(ind).ravel()
+
+    # Truncate and return indices.
+    return _np.where(
+        ind >= 0,
+        _np.where(
+            ind < a.shape[0],
+            ind,
+            a.shape[0] - 1
+        ),
+        0
     )
 
 def _round_indices (ind):
@@ -632,13 +642,12 @@ def _interpolating_indexed_array (a, ind):
     --------
     numpy.floor
     numpy.ceil
-    _truncate_indices
 
     """
 
     # Prepare parameters.
     a = _np.asarray(a)
-    ind = _np.asarry(ind).ravel()
+    ind = _np.asarray(ind).ravel()
 
     # Compute auxiliary indices.
     floor_ind = _np.floor(ind).astype(_np.integer)
@@ -819,6 +828,7 @@ def diverse_sample (
 
     See also
     --------
+    numpy.random.Random
     tensor_var
     diverse_sample_optd
     diverse_sample_optc
@@ -923,6 +933,10 @@ def diverse_sample_optd (
         is only used to produce the initial guess for `scipy.optimize.minimize`
         function.
 
+        **Note.** The random state is used only to generate the initial guess
+        for `scipy.optimize.minimize` function.  For true reproducibility check
+        arguments `constraint_kwargs` and `optimize_kwargs`.
+
     return_ind : boolean, optional
         If true, indices of the subsample (in the original sample) are returned
         as well.  Check *Notes* to see how the result is transformed into
@@ -975,6 +989,7 @@ def diverse_sample_optd (
     scipy.optimize.NonlinearConstraint
     scipy.optimize.minimize
     scipy.optimize.OptimizeResult
+    numpy.random.Random
     numpy.round
     tensor_var
     diverse_sample
@@ -1064,6 +1079,10 @@ def diverse_sample_optc (
         is only used to produce the initial guess for `scipy.optimize.minimize`
         function.
 
+        **Note.** The random state is used only to generate the initial guess
+        for `scipy.optimize.minimize` function.  For true reproducibility check
+        arguments `constraint_kwargs` and `optimize_kwargs`.
+
     return_ind : boolean, optional
         If true, indices of the subsample (in the original sample) are returned
         as well.  Check *Notes* to see how the result is transformed into
@@ -1096,7 +1115,7 @@ def diverse_sample_optc (
         The most diverse sample found.
 
     raw : scipy.optimize.OptimizeResult
-        The result of `scipy.optimize.minimze` function call.
+        The result of `scipy.optimize.minimize` function call.
 
         *Returned only if `return_raw` is true.*
 
@@ -1116,6 +1135,7 @@ def diverse_sample_optc (
     scipy.optimize.NonlinearConstraint
     scipy.optimize.minimize
     scipy.optimize.OptimizeResult
+    numpy.random.Random
     numpy.round
     tensor_var
     diverse_sample
@@ -1157,13 +1177,65 @@ def diverse_sample_optc (
 
 ### Sample splitting
 
-def _compute_absolute_subsample_sizes (total, size):
+def _absolute_subsample_sizes (total, size):
     """
+    Compute absolute sizes of subsamples from size weights.
+
+    Given the number `total` of elements in the original sample and an array of
+    size weights `size`, the absolute weights of subsamples are computed.  The
+    absolute sizes are obtained by multiplying the wights and the total number
+    (`total * size`) and then rounding using built-in `round` function.  The
+    absolute sizes are resolved from the first to last, therefore, in case of
+    ties, sizes at the beginning will be rounded up, while sizes at the end
+    will be rounded down.  For instance, if `total` is 13 and `size` is
+    `[0.5, 0.5]`, the output sizes will be `[7, 6]`.
+
+    Parameters
+    ----------
+    total : int
+        The total number (non-negative) of elements in the original sample.
+
+    size : array_like
+        1-dimensional real-valued array of non-negative elements representing
+        the weights of sizes of subsamples.  The weights do not need to sum up
+        to 1 because they are normalised (by dividing via
+        `numpy.true_divide(size, numpy.sum(size))`) regardless of the original
+        values.
+
+    Returns
+    -------
+    int_size : numpy.ndarray
+        1-dimensional integral-valued array of absolute sizes corresponding to
+        input weights (input array `size`).
+
+    border : numpy.ndarray
+        1-dimensional integral-valued array of border indices of the
+        subsamples.  The following equations are true: `border[0] == 0`,
+        `border[-1] == total` and
+        `numpy.array_equal(numpy.diff(border), int_size)` (the `i`-th subsample
+        can be obtained by using the elements at positions from `border[i]` to
+        `border[i + 1]` in the original sample).
+
+    Notes
+    -----
+    Reduced flexibility of the function (restrictions on the sign and the
+    dimensionality of the sizes) is intentional since the function is not
+    intended to be used outsie of the library.  The function is, in fact,
+    merely an auxiliary internal function.
+
+    See Also
+    --------
+    round
+    numpy.sum
+    numpy.true_divide
+    numpy.diff
+    numpy.array_equal
+
     """
 
     # Compute cummulative relative sizes.
     size = _np.asarray(size).ravel()
-    size = size / _np.flip(_np.flip(size).cumsum())
+    size = _np.true_divide(size, _np.flip(_np.flip(size).cumsum()))
 
     # Compute absolute sizes and borders.
     n = list()
@@ -1172,12 +1244,12 @@ def _compute_absolute_subsample_sizes (total, size):
         total -= n[-1]
     del size
     n = _np.array(n, dtype = _np.integer)
-    r = _np.concatenate(([0], n.cumsum()))
+    r = _np.insert(n.cumsum(), 0, 0)
 
     # Return computed arrays.
     return (n, r)
 
-def _samples_variance_difference (Xs, var, var_dn, sizes, borders, ind):
+def _samples_variance_difference (Xs, var, var_dn, size, border, ind):
     """
     Compute differences in variances between subsamples and the original (total) tensor sample along the first axis.
 
@@ -1188,7 +1260,7 @@ def _samples_variance_difference (Xs, var, var_dn, sizes, borders, ind):
     subsamples and the original samples is computed and returned.
 
     Let `k` be the number of tensors in `Xs` and `m` the number of subsamples
-    for each `X` in `Xs` (length of the array `sizes`).
+    for each `X` in `Xs` (length of the array `size`).
     sizes in `size`.  The element of the `(m, k)`-array at position
     `(i, j)` represents the normalised difference of the subsample's
     variance and the original sample's variance.  The normalised difference
@@ -1224,15 +1296,15 @@ def _samples_variance_difference (Xs, var, var_dn, sizes, borders, ind):
         *Variances* of tensors in `Xs` used for division.  This parameter
         should be `numpy.maximum(var, 1)`.
 
-    sizes : (k,) array_like
+    size : (k,) array_like
         1-dimensional integral-valued array of sizes of subsamples such that
         each size is greater than or equal to 2 and that
-        `numpy.sum(sizes) == n`.
+        `numpy.sum(size) == n`.
 
-    borders : (k + 1,) array_like
+    border : (k + 1,) array_like
         1-dimensional array of integral-valued border-indices for subsamples.
-        The following equalities should be satisfied: `borders[0] == 0`,
-        `borders[-1] == n` and `numpy.array_equal(numpy.diff(borders), sizes)`.
+        The following equalities should be satisfied: `border[0] == 0`,
+        `border[-1] == n` and `numpy.array_equal(numpy.diff(border), size)`.
 
     ind : (n,) array_like
         1-dimensional array of integral-valued indices to extract subsamples.
@@ -1252,8 +1324,8 @@ def _samples_variance_difference (Xs, var, var_dn, sizes, borders, ind):
     Notes
     -----
     The `i`-th subsample of the `j`-tensor is actually
-    `Xs[j][ind[borders[i]:borders[i + 1]]]`.  That is, the index `ind` is
-    divided into parts of sizes provided through the parameter `sizes`, and its
+    `Xs[j][ind[border[i]:border[i + 1]]]`.  That is, the index `ind` is
+    divided into parts of sizes provided through the parameter `size`, and its
     `i`-th part is used as indices for the `i`-th subsamples.  To extract the
     `i`-th subsample of the `j`-th tensor, this part of indices is then applied
     to the `j`-th tensor.
@@ -1271,6 +1343,8 @@ def _samples_variance_difference (Xs, var, var_dn, sizes, borders, ind):
 
     See Also
     --------
+    numpy.maximum
+    numpy.sum
     numpy.diff
     numpy.array_equal
     tensor_var
@@ -1280,9 +1354,9 @@ def _samples_variance_difference (Xs, var, var_dn, sizes, borders, ind):
     return (
         [
             [
-                tensor_var(_np.asarray(X)[ind[borders[a]:borders[a + 1]]]) /
-                        (sizes[a] - 1)
-                    for a in range(int(sizes.size))
+                tensor_var(_np.asarray(X)[ind[border[a]:border[a + 1]]]) /
+                        (size[a] - 1)
+                    for a in range(int(size.size))
             ] for X in Xs
         ] - _np.asarray(var)
     ) / var_dn
@@ -1299,17 +1373,16 @@ def split_sample (
     return_nit = False
 ):
     """
-    Split a sample by preserving variance.
+    Split a sample by preserving its variance.
 
     Given an iterable `Xs` of samples (see parameter below) aranged in tensors
     all of which are of the same size along the axis `axis` and a 1-dimensional
     array `size` of subsamples' sizes, the samples are split into subsamples
     of given sizes along the provided axis by preserving the original variances
     as closely as possible.  If `size` is an array of weights, such as
-    `[0.5, 0.5]`, actual sizes are first rounded up (if exactly between two
-    integers) by resolving sizes from beginning to end.  For example, if the
-    samples in `Xs` are of size 11, and `size` is `[0.5, 0.5]`, subsamples of
-    sizes 6, 5 are generated.
+    `[0.5, 0.5]`, actual sizes are rounded by resolving sizes from beginning to
+    end.  For example, if the samples in `Xs` are of size 13, and `size` is
+    `[0.5, 0.5]`, subsamples of sizes 7, 6 are generated.
 
     Actually, all given `sizes` are treated as positive weights, therefore,
     given an array of sizes `[2, 3, 5]`, the resulting subsamples may not be of
@@ -1409,6 +1482,7 @@ def split_sample (
 
     See Also
     --------
+    numpy.random.Random
     tensor_var
     split_sample_optc
     split_sample_optd
@@ -1428,7 +1502,7 @@ def split_sample (
     if random_state is None:
         random_state = _np.random
 
-    n, r = _compute_absolute_subsample_sizes(Xs[0].shape[0], size)
+    n, r = _absolute_subsample_sizes(Xs[0].shape[0], size)
 
     v = _np.expand_dims([tensor_var(X) / (X.shape[0] - 1) for X in Xs], 1)
     vd = _np.maximum(v, 1.0)
