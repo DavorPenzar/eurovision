@@ -3,9 +3,10 @@
 """
 Utilities for preparation of the dataset of songs.
 
-This script is a part of Davor Penzar's *ESC Score Predictor* project.
+This script is a part of Davor Penzar's *[ESC](http://eurovision.tv/) Score
+Predictor* project.
 
-Author: Davor Penzar <davor.penzar@gmail.com>
+Author: [Davor Penzar `<davor.penzar@gmail.com>`](mailto:davor.penzar@gmail.com)
 Date: 2020-12-14
 Version: 1.0
 
