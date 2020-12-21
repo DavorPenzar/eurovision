@@ -595,7 +595,7 @@ def _interpolating_indexed_array (a, ind):
     The interpolation method is a linear spline.  An element at position
     `n + q`, where `n` is an integer and `q` is a real number such that
     `0 <= q < 1` is computed as `a[n] + q * (a[n + 1] - a[n])` (the case when
-    `n` is the last index and `q == 0` is also handled successfully).
+    `n` is the last index and `q == 0` is also handled corectly).
 
     Parameters
     ----------
