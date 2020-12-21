@@ -4,7 +4,7 @@ Creation of a machine-learning model for predicting scores in the [*Eurovision S
 
 ##  Used Values
 
-Function [`compute_params`](utils.py#L33) was not actually used in the production.  Instead, the parameters dictionary was created manually, as setting
+Function [`utils.compute_params`](utils.py#L33) was not actually used in the production.  Instead, the parameters dictionary was created manually, by setting
 
 ```Python
 params = {
@@ -12,8 +12,9 @@ params = {
     'hop_length': 512,
     'kernel_size': 31,
     'win_length': 512,
-    'width': 9,
-    'dtype': np.float64
+    'width': 9
 }
 
 ```
+
+Somewhere, of course, additional parameters were set, but their values would not be set by the function, anyway.
