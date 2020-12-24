@@ -8,7 +8,7 @@ Function [`utils.compute_params`](utils.py#L33) was not actually used in the pro
 
 ```Python
 params = {
-    'sr': 26215,
+    'sr': 26215, # the optimal value is 26214.4
     'hop_length': 512,
     'kernel_size': 31,
     'win_length': 512,
