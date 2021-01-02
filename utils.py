@@ -12,6 +12,9 @@ Version: 1.0
 
 """
 
+# Import standard library.
+import math as _math
+
 # Import SciPy packages.
 import numpy as _np
 import scipy.optimize as _spo
@@ -34,11 +37,12 @@ def compute_params (**params):
     """
     Compute parameters for song preprocessing.
 
-    Parameters `hop_length`, `kernel_size`, `width` and `win_length` are
-    computed from the parameter `sr` (sample rate).  See
-    `librosa.effects.hpss`, `librosa.beat.beat_track`, `librosa.feature.mfcc`,
-    `librosa.feature.delta`, `librosa.feature.chroma_cqt` and
-    `librosa.feature.tempogram` for explanation of the parameters.
+    Parameters `hop_length`, `frame_length`, `kernel_size`, `width` and
+    `win_length` are computed from the parameter `sr` (sample rate).  See
+    `librosa.effects.hpss`, `librosa.feature.zero_crossing_rate`,
+    `librosa.feature.mfcc`, `librosa.feature.delta`,
+    `librosa.feature.chroma_cqt` and `librosa.feature.tempogram` for
+    explanation of the parameters.
 
     Inspect code to see how the parameters are computed.
 
@@ -55,6 +59,7 @@ def compute_params (**params):
 
     See Also
     librosa.effects.hpss
+    librosa.feature.zero_crossing_rate
     librosa.feature.chroma_cqt
     librosa.feature.tempogram
     librosa.feature.mfcc
@@ -69,13 +74,13 @@ def compute_params (**params):
 
     # Compute other parameters.
 
-    hop_length = int(round(sr / 50.0))
+    hop_length = 64 * int(round(sr / 3200.0))
     if hop_length <= 0:
-        hop_length = 1
-    if hop_length & 0o77: # if hop_length % 64
-        hop_length += 64 - (hop_length & 0o77)
+        hop_length = 64
 
-    kernel_size = int(round(float(hop_length) / 16.0)) - 1
+    frame_length = hop_length << 2 # frame_length = 4 * hop_length
+
+    kernel_size = int(round(_math.ceil(float(hop_length) / 16.0))) - 1
     while kernel_size < 3 or not (kernel_size & 1):
         # while kernel_size < 3 or not (kernel_size % 2)
         kernel_size += 1
@@ -84,7 +89,7 @@ def compute_params (**params):
     if win_length <= 0:
         win_length = 1
 
-    width = int(round(float(kernel_size + 1) / 4.0)) + 1
+    width = int(round(_math.ceil(float(kernel_size + 1) / 4.0))) + 1
     while width < 3 or not (width & 1): # while width < 3 or not (width % 2)
         width += 1
 
@@ -93,6 +98,7 @@ def compute_params (**params):
         {
             'sr': sr,
             'hop_length': hop_length,
+            'frame_length': frame_length,
             'kernel_size': kernel_size,
             'win_length': win_length,
             'width': width
@@ -112,8 +118,8 @@ def process_song (
     """
     Process a song.
 
-    The song's chromagram, tempogram, MFCC and MFCC delta features are computed
-    and returned.
+    The song's zero-crossing rate, chromagram, tempogram, MFCC and MFCC delta
+    features are computed and returned.
 
     Parameters
     ----------
@@ -132,12 +138,12 @@ def process_song (
 
     params
         Optional definitions of parameters `sr`, `kernel_size`, `hop_length`,
-        `win_length`, `width`, `n_chroma`, `n_mfcc` and `bins_per_octave` for
-        functions `librosa.effects.hpss`, `librosa.feature.chroma_cqt`,
-        `librosa.feature.tempogram`, `librosa.feature.mfcc` and
-        `librosa.feature.delta`.  If any of the parameters is undefined, its
-        default value is used.  If `comp` is `True`, any initial values (except
-        `sr` if it is not `None`) are overwritten.
+        `win_length`, `width`, `n_chroma`, `n_mfcc`, `bins_per_octave` and
+        `norm` for functions `librosa.effects.hpss`,
+        `librosa.feature.chroma_cqt`, `librosa.feature.tempogram`,
+        `librosa.feature.mfcc` and `librosa.feature.delta`.  If any of the
+        parameters is undefined, its default value is used.  If `comp` is true,
+        any initial values (except `sr` if it is not `None`) are overwritten.
         
         **Note.** Parameter `sr` may be `None` to use the original input file's
         sample rate.
@@ -165,6 +171,10 @@ def process_song (
 
         *Returned only if `return_y` is true.*
 
+    zcr : (1, n) numpy.ndarray
+        Fractions of zero-crossings.  Dimension `n` is the length of the track
+        in observed hops.
+
     chromagram : (n_chroma, n) numpy.ndarray
         Chromagram matrix.
 
@@ -179,6 +189,7 @@ def process_song (
     --------
     librosa.load
     librosa.effects.hpss
+    librosa.effects.zero_crossing_rate
     librosa.feature.chroma_cqt
     librosa.feature.tempogram
     librosa.feature.mfcc
@@ -206,12 +217,19 @@ def process_song (
         kernel_size = params.get('kernel_size', 31)
     )
 
+    # Compute zero-crossing rate features.
+    zcr = _lr.feature.zero_crossing_rate(
+        y = y,
+        frame_length = params.get('frame_length', 2048),
+        hop_length = params.get('hop_length', 512)
+    )
+
     # Compute chroma features.
     chromagram = _lr.feature.chroma_cqt(
         y = y_harmonic,
         sr = params.get('sr', 22050),
         hop_length = params.get('hop_length', 512),
-        norm = None,
+        norm = params.get('norm', float('inf')),
         n_chroma = params.get('n_chroma', 12),
         bins_per_octave = params.get('bins_per_octave', 36)
     )
@@ -222,7 +240,7 @@ def process_song (
         sr = params.get('sr', 22050),
         hop_length = params.get('hop_length', 512),
         win_length = params.get('win_length', 384),
-        norm = None
+        norm = params.get('norm', float('inf'))
     )
 
     # Compute MFCC features and the first-order differences.
@@ -252,6 +270,7 @@ def process_song (
         ret.append(y_percussive)
     elif return_sr:
         ret.append(params['sr'])
+    ret.append(zcr)
     ret.append(chromagram)
     ret.append(tempogram)
     ret.append(mfcc)
