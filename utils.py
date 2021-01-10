@@ -7,7 +7,7 @@ This script is a part of Davor Penzar's *[ESC](http://eurovision.tv/) Score
 Predictor* project.
 
 Author: [Davor Penzar `<davor.penzar@gmail.com>`](mailto:davor.penzar@gmail.com)
-Date: 2021-01-09
+Date: 2021-01-10
 Version: 1.0
 
 """
@@ -118,8 +118,8 @@ def process_song (
     """
     Process a song.
 
-    The song's zero-crossing rate, chromagram, tempogram, MFCC and MFCC delta
-    features are computed and returned.
+    The song's zero-crossing rate, chromagram, tempogram, MFC, MFC delta and
+    MFC delta^2 features are computed and returned.
 
     Parameters
     ----------
@@ -138,26 +138,26 @@ def process_song (
 
     params
         Optional definitions of parameters `sr`, `kernel_size`, `hop_length`,
-        `win_length`, `width`, `n_chroma`, `n_mfcc`, `bins_per_octave` and
-        `norm` for functions `librosa.effects.hpss`,
+        `win_length`, `norm`, `n_chroma`, `n_mfcc`, `bins_per_octave` and
+        `width` for functions `librosa.effects.hpss`,
         `librosa.feature.chroma_cqt`, `librosa.feature.tempogram`,
         `librosa.feature.mfcc` and `librosa.feature.delta`.  If any of the
         parameters is undefined, its default value is used.  If `comp` is true,
         any initial values (except `sr` if it is not `None`) are overwritten.
 
-        If you want to specify different values of parameters for each
-        function, you can prepend the name of the parameter with the string
-        `'{function_name}:'`, where `function_name` is the name of the function
+        To specify different values of parameters for each function, the name
+        of the parameter must be prepended with the substring
+        `'{function_name}_'`, where `function_name` is the name of the function
         without the names of the packages and subpackages.  For instance, to
         set a sepcial value for `hop_length` in `librosa.feature.mfcc`
-        function, a keyword argument named `'mfcc:hop_length'` should be
+        function, a parameter `mfcc_hop_length'` should be
         passed.  Such special definitions are searched before *global*
         definitions (definitions without prefixes), even if the parameter is
         used only in one of the functions (for instance, `n_chroma` is used
-        only in `librosa.feature.chroma_cqt` but parameter
-        `chroma_cqt:n_chroma` still has precedence over it), and they are not
-        overwritten if `comp` is true.  However, parameter `sr` is global and
-        cannot be prefixed to use different values in functions.
+        solely in `librosa.feature.chroma_cqt` but parameter
+        `chroma_cqt_n_chroma` still has precedence over it), and they are not
+        overwritten if `comp` is true.  However, parameter `sr` is necessarily
+        global and cannot be prefixed to use different values in functions.
 
         **Note.** Parameter `sr` may be `None` to use the original input file's
         sample rate.
@@ -196,8 +196,9 @@ def process_song (
         Tempogram matrix.
 
     mfcc : (n_mfcc, n, 2) numpy.ndarray
-        MFCC and MFCC delta features.  The first slice along the third axis is
-        the MFCC matrix and the second slice is the MFCC delta matrix.
+        MFC, MFC delta and MFC delta^2 features.  The first slice along the
+        third axis is the MFCC matrix, the second slice is the MFCC delta
+        matrix and the third slice is the MFCC delta^2 matrix.
 
     See Also
     --------
@@ -217,8 +218,9 @@ def process_song (
         path = path,
         sr = params.get('sr', 22050),
         mono = True,
-        dtype = params.get('load:dtype', params.get('dtype', _np.float32))
+        dtype = params.get('load_dtype', params.get('dtype', _np.float32))
     )
+    y /= max(_np.absolute(y).max(axis = None), 1.0)
     params['sr'] = int(params['sr'])
 
     # If needed, compute parameters.
@@ -228,47 +230,101 @@ def process_song (
     # Separate harmonics and percussives.
     y_harmonic, y_percussive = _lr.effects.hpss(
         y = y,
-        kernel_size = params.get('hpss:kernel_size', params.get('kernel_size', 31))
+        kernel_size = params.get(
+            'hpss_kernel_size',
+            params.get('kernel_size', 31)
+        )
     )
+    y_harmonic /= max(_np.absolute(y_harmonic).max(axis = None), 1.0)
+    y_percussive /= max(_np.absolute(y_percussive).max(axis = None), 1.0)
 
     # Compute zero-crossing rate features.
     zcr = _lr.feature.zero_crossing_rate(
         y = y,
-        frame_length = params.get('zero_crossing_rate:frame_length', params.get('frame_length', 2048)),
-        hop_length = params.get('zero_crossing_length:hop_length', params.get('hop_length', 512))
+        frame_length = params.get(
+            'zero_crossing_rate_frame_length',
+            params.get('frame_length', 2048)
+        ),
+        hop_length = params.get(
+            'zero_crossing_length_hop_length',
+            params.get('hop_length', 512)
+        )
     )
 
     # Compute chroma features.
     chromagram = _lr.feature.chroma_cqt(
         y = y_harmonic,
         sr = params.get('sr', 22050),
-        hop_length = params.get('chroma_cqt:hop_length', params.get('hop_length', 512)),
-        norm = params.get('chroma_cqt:norm', params.get('norm', float('inf'))),
-        n_chroma = params.get('chroma_cqt:n_chroma', params.get('n_chroma', 12)),
-        bins_per_octave = params.get('chroma_cqt:bins_per_octave', params.get('bins_per_octave', 36))
+        hop_length = params.get(
+            'chroma_cqt_hop_length',
+            params.get('hop_length', 512)
+        ),
+        norm = params.get(
+            'chroma_cqt_norm',
+            params.get('norm', float('inf'))
+        ),
+        n_chroma = params.get(
+            'chroma_cqt_n_chroma',
+            params.get('n_chroma', 12)
+        ),
+        bins_per_octave = params.get(
+            'chroma_cqt_bins_per_octave',
+            params.get('bins_per_octave', 36)
+        )
     )
 
     # Compute tempo features.
     tempogram = _lr.feature.tempogram(
         y = y_percussive,
         sr = params.get('sr', 22050),
-        hop_length = params.get('tempogram:hop_length', params.get('hop_length', 512)),
-        win_length = params.get('tempogram:win_length', params.get('win_length', 384)),
-        norm = params.get('tempogram:norm', params.get('norm', float('inf')))
+        hop_length = params.get(
+            'tempogram_hop_length',
+            params.get('hop_length', 512)
+        ),
+        win_length = params.get(
+            'tempogram_win_length',
+            params.get('win_length', 384)
+        ),
+        norm = params.get(
+            'tempogram_norm',
+            params.get('norm', float('inf'))
+        )
     )
 
-    # Compute MFCC features and the first-order differences.
+    # Compute MFC features and the first- and second-order differences.
     mfcc = _lr.feature.mfcc(
         y = y,
         sr = params.get('sr', 22050),
-        hop_length = params.get('mfcc:hop_length', params.get('hop_length', 512)),
-        n_mfcc = params.get('mfcc:n_mfcc', params.get('n_mfcc', 20))
+        hop_length = params.get(
+            'mfcc_hop_length',
+            params.get('hop_length', 512)
+        ),
+        n_mfcc = params.get(
+            'mfcc_n_mfcc',
+            params.get('n_mfcc', 20)
+        )
     )
-    mfcc_delta = _lr.feature.delta(data = mfcc, width = params.get('width', 9))
+    mfcc_delta = _lr.feature.delta(
+        data = mfcc,
+        width = params.get(
+            'delta_width',
+            params.get('width', 9)
+        ),
+        order = 1
+    )
+    mfcc_delta2 = _lr.feature.delta(
+        data = mfcc,
+        width = params.get(
+            'delta_width',
+            params.get('width', 9)
+        ),
+        order = 2
+    )
     mfcc = _np.concatenate(
         (
             _np.expand_dims(mfcc, mfcc.ndim),
-            _np.expand_dims(mfcc_delta, mfcc_delta.ndim)
+            _np.expand_dims(mfcc_delta, mfcc_delta.ndim),
+            _np.expand_dims(mfcc_delta2, mfcc_delta2.ndim)
         ),
         axis = -1
     )
