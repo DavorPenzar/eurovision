@@ -8,10 +8,12 @@ Function [`utils.compute_params`](utils.py#L36) was not actually used in the pro
 
 ```Python
 params = {
-    'sr': 26215, # the optimal value is 26214.4
+    'sr': 26214, # the optimal value is 26214.4
     'hop_length': 512,
+    'chromagram_hop_length': 4096,
+    'tempogram_hop_length': 1024,
     'kernel_size': 31,
-    'win_length': 512,
+    'win_length': 256,
     'width': 9
 }
 
