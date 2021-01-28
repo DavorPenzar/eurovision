@@ -7,7 +7,7 @@ This script is a part of Davor Penzar's *[ESC](http://eurovision.tv/) Score
 Predictor* project.
 
 Author: [Davor Penzar `<davor.penzar@gmail.com>`](mailto:davor.penzar@gmail.com)
-Date: 2021-01-10
+Date: 2021-01-28
 Version: 1.0
 
 """
@@ -17,7 +17,12 @@ import math as _math
 
 # Import SciPy packages.
 import numpy as _np
+import scipy as _sp
 import scipy.optimize as _spo
+
+# Import scikit-image.
+import skimage as _ski
+import skimage.transform as _skit
 
 # Import TensorLy.
 import tensorly as _tl
@@ -347,6 +352,301 @@ def process_song (
 
     return tuple(ret)
 
+def _rays_pi_6th (x, y, m, n = None, dtype = _np.floating):
+    r"""
+    Generate masks for rays between angles of integral multiples of pi/6 in the first quadrant.
+
+    Parameters
+    ----------
+    x : (m, 1) array_like
+        Values along the $ x $-axis strictly greater than 0.
+
+    y : (1, n) array_like
+        Values along the $ y $-axis strictly greater than 0.
+
+    m : int
+        Transformation downscaling factor (greater than or equal to 1) for the
+        $ x $-axis values.  Before computing angles, the input array `x` is
+        divided by `m`.
+
+    n : None or int, optional
+        Transformation downscaling factor (greater than or equal to 1) for the
+        $ y $-axis values.  If `n` is not set (or if it is `None`), it is set
+        to the value of `m`.  Before computing angles, the input array `y` is
+        divided by `n`.
+
+    dtype : numpy.dtype, optional
+        Type of the values in the resulting mask array.
+
+    Returns
+    -------
+    (m, n, 3) numpy.ndarray
+        Mask of the `x` × `y` set.  For each index `i` (0 through 2) the `i`-th
+        slice along the third axis (at index 2) represents the mask for the
+        ray between angles $ i\pi / 6 $ and $ (i + 1)\pi / 6 $.  Indices along
+        the first (at index 0) and second (at index 1) axes are derived from
+        input arrays `x` and `y`.
+
+    Notes
+    -----
+    Reduced flexibility of the function (restrictions on the shapes and values
+    of the input parameters) is intentional since the function is not intended
+    to be used outside of the library.  The function is, in fact, merely an
+    auxiliary internal function.
+
+    """
+
+    # Define the approximation of the square root of 3.
+    sqrt_3 = \
+        1.7320508075688772935274463415058723669428052538103806280558069795
+
+    # Prepare parameters.
+
+    if n is None:
+        n = m
+
+    x = _np.asarray(x)
+    y = _np.asarray(y)
+
+    # Compute transformed tangents and cotangents.
+    tan = (m * y) / (n * x)
+    cot = (n * x) / (m * y) # not `tan ** -1` because of numeric errors
+
+    # Initialise the resulting mask.
+    mask = _np.zeros((m, n, 3), dtype = dtype)
+
+    # Compute masks for the cumulative unions of the rays.
+    mask[:, :, 0] = (sqrt_3 * tan <= 1.0)
+    mask[:, :, 1] = (sqrt_3 * cot >= 1.0)
+        # ^ not `tan <= sqrt_3` because of numeric errors
+    mask[:, :, 2] = _np.ones((m, n), dtype = dtype)
+
+    # Compute actual masks from cumulative masks.
+    for i in range(2, 0, -1):
+        mask[:, :, i] -= mask[:, :, i - 1]
+
+    # Return the computed mask.
+    return mask
+
+def _circ (x, y, m, n = None, dtype = _np.floating):
+    r"""
+    Generate masks for a circle (ellipse).
+
+    Parameters
+    ----------
+    x : (m, 1) array_like
+        Values along the $ x $-axis strictly greater than 0.
+
+    y : (1, n) array_like
+        Values along the $ y $-axis strictly greater than 0.
+
+    m : int
+        Transformation downscaling factor (greater than or equal to 1) for the
+        $ x $-axis values.  Before computing distances from the origin, the
+        input array `x` is divided by `m`.
+
+    n : None or int, optional
+        Transformation downscaling factor (greater than or equal to 1) for the
+        $ y $-axis values.  If `n` is not set (or if it is `None`), it is set
+        to the value of `m`.  Before computing distances from the origin, the
+        input array `y` is divided by `n`.
+
+    dtype : numpy.dtype, optional
+        Type of the values in the resulting mask array.
+
+    Returns
+    -------
+    (m, n) numpy.ndarray
+        Mask of the `x` × `y` set for the unit circle.  Indices along the first
+        (at index 0) and second (at index 1) axes are derived from input arrays
+        `x` and `y`.
+
+    Notes
+    -----
+    Reduced flexibility of the function (restrictions on the shapes and values
+    of the input parameters) is intentional since the function is not intended
+    to be used outside of the library.  The function is, in fact, merely an
+    auxiliary internal function.
+
+    """
+
+    # Prepare parameters.
+
+    if n is None:
+        n = m
+
+    x = _np.asarray(x)
+    y = _np.asarray(y)
+
+    # Compute transformed distances from the origin.
+    dist = _np.sqrt(_np.square(x / m) + _np.square(y / n))
+
+    # Compute the mask for the circle (ellipse).
+    mask = _np.asarray((dist <= 1.0), dtype = dtype)
+
+    # Return the computed mask.
+    return mask
+
+def circ_12ths (
+    m,
+    n = None,
+    dtype = _np.floating,
+    super_scale = None,
+    mem_econ = True
+):
+    r"""
+    Generate masks for twelftths of a circle (ellipse).
+
+    A mask for a measurable set (e. g. a twelfth of a circle) is an array of
+    real values from the interval [0, 1].  An actual mask would only have zeros
+    and ones as entries; however, since arrays are discrete, a more realistic
+    masks can be achieved using anti-aliasing by setting entries partially in
+    the set to a value between 0 and 1.  Such a mask indicates the following:
+
+    *   entries with the value of 0 are completely outside of the set,
+    *   entries with the value of 1 are completely inside of the set,
+    *   entries with a value of $ p $ from the interval (0, 1) represent a
+        measurable region with a finite non-zero area such that the ratio of
+        the area of its intersection with the set and the complete region's
+        area equals $ p $.
+
+    A twelfth of a circle in the context of this function is not *any* subset
+    of a circle with the area of a twelfth of the circle's area.  A twelfth of
+    a circle is defined by an integer $ k $ and consits of all the points
+    $ (x, y) $ for which there exist numbers $ r $ from the interval [0, 1] and
+    $ \varphi $ from the interval [$ k\pi / 6 $, $ (k + 1)\pi / 6 $) such that
+    $ x = r\cos\varphi $ and $ y = r\sin\varphi $.  Effectively there exist
+    only 12 such twelfths since sine and cosine functions are periodic.
+
+    Parameters
+    ----------
+    m : int
+        Number of discretisation points of the radius along the $ x $-axis.
+        The complete circle is discretised along the $ x $-axis by `2 * m`
+        points.
+
+    n : None or int, optional
+        Number of discretisation points of the radius along the $ y $-axis.
+        If `n` is not set (or if it is `None`), it is set to the value of `m`.
+        The complete circle is discretised along the $ y $-axis by `2 * n`
+        points.
+
+    dtype : numpy.dtype, optional
+        Type of the values in the resulting mask array.
+
+    super_scale : None or int or tuple of int
+        If set (if it is not `None`), the value(s) indicate the factor(s) of
+        supersampling for each entry in the resulting mask array to numerically
+        calculate their optimal values.  Setting `super_scale` to `None` is the
+        same as setting it to 1, and it results in no supersampling, i. e. the
+        resulting mask array is not anti-aliased.  Alternatively, the value(s)
+        must be strictly positive (greater than or equal to 1), and it may be a
+        single integer or a tuple of 2 integers: in the former case the value
+        is used for both $ x $- and $ y $-axes supersampling, in the latter
+        case the first number is used for $ x $-axis supersampling while the
+        second number is used for the $ y $-axis supersampling.
+
+    mem_econ : boolean, optional
+        If true, each twelfth in the resulting mask array is position only in
+        its representative quadrant, resulting in 4 times fewer entries.
+        However, subsequently additional transformations have to be made before
+        using the mask(s).  See returning values for more information.
+
+    Returns
+    -------
+    (..., 12) numpy.ndarray
+        Mask of the [-1, 1] × [-1, 1] square.  Each entry represents a
+        rectangle acquired by discretising the unit length along the $ x $-axis
+        in `m` subsegments and along the $ y $-axis in `n` subsegments.  Hence
+        the shape of the resulting mask array is `(m, n, 12)` if `mem_econ` is
+        true and `(2 * m, 2 * n, 12)` otherwise (the first axis, at index 0,
+        corresponds to the $ x $-axis; the second one, at index 1, corresponds
+        to the $ y $-axis).  The higher the index of the entry along the
+        $ x $-axis, the higher the $ x $-axis' value of the corresponding point
+        (centroid of the rectangle); the same applies to the $ y $-axis.  For
+        instance, entry at `[r, s, i]` is to the left of the entry at
+        `[r + 1, s, i]`.  Finally, for each index `i` (0 through 11) the `i`-th
+        slice along the third axis (at index 2) represents the mask for the
+        twelfth of the unit circle defined by the integer `i`.
+
+        If `mem_econ` is false, all slices along the last axis mask the
+        complete square [-1, 1] × [-1, 1].  Otherwise each slice masks only the
+        square [0, +/-1] × [0, +/-1] to which the corresponding circle twelfth
+        belongs.
+
+    """
+
+    # Prepare parameters.
+
+    if n is None:
+        n = m
+
+    M = m
+    N = n
+
+    if super_scale is not None:
+        if hasattr(super_scale, '__iter__'):
+            super_scale = list(super_scale)
+        else:
+            super_scale = [super_scale, super_scale]
+        super_scale = tuple(super_scale + [1])
+
+        # Augment dimensions `m` and `n` by the corresponding factors.
+        M = super_scale[0] * m
+        N = super_scale[1] * n
+
+    # Discretise the rectangle [0, M] × [0, N].
+    x, y = _np.ogrid[
+        0.5 : M - 0.5 : complex(imag = M),
+        0.5 : N - 0.5 : complex(imag = N)
+    ]
+
+    # Compute masks of the pi/6-rays and the circle (ellipse).
+    mask_rays = _rays_pi_6th(x, y, M, N, dtype)
+    mask_circ = _circ(x, y, M, N, dtype)
+
+    # In case of supersampling, downscale the computed masks.
+    if super_scale is not None:
+        aux_mask = _skit.downscale_local_mean(
+            _np.concatenate(
+                (mask_rays, _np.expand_dims(mask_circ, mask_circ.ndim)),
+                axis = -1
+            ),
+            factors = super_scale
+        ).astype(dtype)
+        mask_rays = aux_mask[:, :, :-1]
+        mask_circ = aux_mask[:, :, -1]
+
+        # Free memory.
+        del aux_mask
+
+    # Initialise the final mask and compute masks for the first 3 twelfths.
+    mask = None
+    if mem_econ:
+        mask = _np.zeros((m, n, 12), dtype = dtype)
+        for i in range(3):
+            mask[:, :, i] = mask_rays[:, :, i] * mask_circ
+    else:
+        mask = _np.zeros(((m << 1), (n << 1), 12), dtype = dtype)
+        for i in range(3):
+            mask[m:, n:, i] = mask_rays[:, :, i] * mask_circ
+
+    # Free memory.
+    del mask_rays
+    del mask_circ
+
+    # Compute the masks of the remaining twelfths by flipping and rotating the
+    # first 3 twelfths.
+    for q in range(1, 4):
+        for i in range(3):
+            mask[:, :, 3 * q + i] = _np.flip(
+                mask[:, :, 3 * q - i - 1],
+                axis = 1 - (q & 1)
+            )
+
+    # Return the computed mask.
+    return mask
+
 def as_audio (y):
     """
     Convert audio time series to audio data.
@@ -374,7 +674,7 @@ def as_audio (y):
 ##  TENSOR VARIANCE
 
 def tensor_var (Y, axis = -1):
-    """
+    r"""
     Compute variance of a sample arranged in a tensor.
 
     The variance of a tensor-shaped sample $ Y $ is defined as the square of
@@ -427,7 +727,7 @@ def tensor_var (Y, axis = -1):
     )
 
 def tensor_var_vec (Y, axis = -1, **kwargs):
-    """
+    r"""
     Compute variance of a sample arranged in a tensor.
 
     The covariance matrix of a sample $ Y $ is defined as the covariance matrix
@@ -479,7 +779,7 @@ def tensor_var_vec (Y, axis = -1, **kwargs):
     )
 
 def tensor_var_svd (Y, axis = -1, return_d = False, tucker_kwargs = dict()):
-    """
+    r"""
     Compute variance of a sample arranged in a tensor.
 
     Inspired by the covariance matrix, variance of a tensor-shaped sample $ Y $
@@ -952,6 +1252,10 @@ def diverse_sample (
             j = 0
         else:
             j += 1
+
+        # Free memory.
+        del ind
+        del var
     max_ind.sort()
     max_Z = _np.moveaxis(Y[max_ind], 0, axis)
 
@@ -1682,6 +1986,10 @@ def split_sample (
             j = 0
         else:
             j += 1
+
+        # Free memory.
+        del ind
+        del d
     min_ind = tuple(
         _np.sort(min_ind[r[a]:r[a + 1]]) for a in range(n.size)
     )
