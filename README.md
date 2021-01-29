@@ -4,15 +4,15 @@ Creation of a machine-learning model for predicting scores in the [*Eurovision S
 
 ##  Used Values
 
-Function [`utils.compute_params`](utils.py#L36) was not actually used in the production.  Instead, the parameters dictionary was created manually, by setting
+Function [`utils.compute_params`](utils.py#L36) was not actually used in the production.  Instead, the parameters dictionary was created manually by setting
 
 ```Python
 params = {
-    'sr': 26214, # the optimal value is 26214.4
-    'hop_length': 512,
-    'chromagram_hop_length': 4096,
-    'tempogram_hop_length': 1024,
-    'kernel_size': 31,
+    'sr': 19661, # the optimal value is 19660.8
+    'hop_length': 768,
+    'chromagram_hop_length': 3072,
+    'tempogram_hop_length': 768,
+    'kernel_size': 47,
     'win_length': 256,
     'width': 9
 }
