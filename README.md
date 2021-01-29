@@ -12,6 +12,7 @@ params = {
     'hop_length': 768,
     'chromagram_hop_length': 3072,
     'tempogram_hop_length': 768,
+    'frame_length': 1536, # instead of 3072 (half of it)
     'kernel_size': 47,
     'win_length': 256,
     'width': 9
