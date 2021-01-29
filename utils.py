@@ -85,7 +85,9 @@ def compute_params (**params):
 
     frame_length = hop_length << 2 # frame_length = 4 * hop_length
 
-    kernel_size = int(round(_math.ceil(float(hop_length) / 16.0))) - 1
+    kernel_size = int(round(_math.floor(float(hop_length) / 16.0)))
+    while not (kernel_size & 1):
+        kernel_size -= 1
     while kernel_size < 3 or not (kernel_size & 1):
         # while kernel_size < 3 or not (kernel_size % 2)
         kernel_size += 1
@@ -94,7 +96,7 @@ def compute_params (**params):
     if win_length <= 0:
         win_length = 1
 
-    width = int(round(_math.ceil(float(kernel_size + 1) / 4.0))) + 1
+    width = int(round(_math.ceil(float(hop_length) / 64.0)))
     while width < 3 or not (width & 1): # while width < 3 or not (width % 2)
         width += 1
 
