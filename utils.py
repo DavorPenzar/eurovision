@@ -38,12 +38,12 @@ import librosa as _lr
 
 ##  AUDIO MANIPULATION
 
-def compute_params (**params):
+def compute_params (**kwargs):
     """
     Compute parameters for song preprocessing.
 
-    Parameters `hop_length`, `frame_length`, `kernel_size`, `width` and
-    `win_length` are computed from the parameter `sr` (sample rate).  See
+    Parameters `hop_length`, `frame_length`, `n_fft`, `kernel_size`, `width`
+    and `win_length` are computed from the parameter `sr` (sample rate).  See
     `librosa.effects.hpss`, `librosa.feature.zero_crossing_rate`,
     `librosa.feature.mfcc`, `librosa.feature.delta`,
     `librosa.feature.chroma_cqt` and `librosa.feature.tempogram` for
@@ -53,14 +53,14 @@ def compute_params (**params):
 
     Parameters
     ----------
-    params
-        If `sr` argument is in `params`, then its value is used; otherwise
+    kwargs
+        If `sr` argument is in `kwargs`, then its value is used; otherwise
         `22050` is used.  Other arguments are ignored and perhaps overwritten.
 
     Returns
     -------
     dict
-        Input parameter `params` updated with the computed values.
+        Input parameter `kwargs` updated with the computed values.
 
     See Also
     librosa.effects.hpss
@@ -73,7 +73,7 @@ def compute_params (**params):
     """
 
     # Get the sample rate.
-    sr = params.get('sr', 22050)
+    sr = kwargs.get('sr', 22050)
     if sr <= 0:
         sr = 1
 
@@ -84,6 +84,7 @@ def compute_params (**params):
         hop_length = 64
 
     frame_length = hop_length << 2 # frame_length = 4 * hop_length
+    n_fft = hop_length << 2 # n_fft = 4 * hop_length
 
     kernel_size = int(round(_math.floor(float(hop_length) / 16.0)))
     while not (kernel_size & 1):
@@ -100,12 +101,13 @@ def compute_params (**params):
     while width < 3 or not (width & 1): # while width < 3 or not (width % 2)
         width += 1
 
-    # Update `params`.
-    params.update(
+    # Update `kwargs`.
+    kwargs.update(
         {
             'sr': sr,
             'hop_length': hop_length,
             'frame_length': frame_length,
+            'n_fft': n_fft,
             'kernel_size': kernel_size,
             'win_length': win_length,
             'width': width
@@ -113,14 +115,14 @@ def compute_params (**params):
     )
 
     # Return the computed parameters.
-    return params
+    return kwargs
 
 def process_song (
     path,
     return_y = False,
     return_sr = False,
     comp = False,
-    **params
+    **kwargs
 ):
     """
     Process a song.
@@ -141,16 +143,17 @@ def process_song (
         If true, the sample rate is returned as well.
 
     comp : boolean, optional
-        If true, parameters are computed using `compute_params` function.
+        If true, parameters are computed using `compute_kwargs` function.
 
-    params
-        Optional definitions of parameters `sr`, `kernel_size`, `hop_length`,
-        `win_length`, `norm`, `n_chroma`, `n_mfcc`, `bins_per_octave` and
-        `width` for functions `librosa.effects.hpss`,
-        `librosa.feature.chroma_cqt`, `librosa.feature.tempogram`,
-        `librosa.feature.mfcc` and `librosa.feature.delta`.  If any of the
-        parameters is undefined, its default value is used.  If `comp` is true,
-        any initial values (except `sr` if it is not `None`) are overwritten.
+    kwargs
+        Optional definitions of parameters `sr`, `fmin`, `fmax`, `kernel_size`,
+        `hop_length`, `win_length`, `norm`, `n_chroma`, `n_fft`, `n_mels`,
+        `n_mfcc`, `bins_per_octave` and `width` for functions
+        `librosa.effects.hpss`, `librosa.feature.chroma_cqt`,
+        `librosa.feature.tempogram`, `librosa.feature.mfcc` and
+        `librosa.feature.delta`.  If any of the parameters is undefined, its
+        default value is used.  If `comp` is true, any initial values (except
+        `sr` if it is not `None`) are overwritten.
 
         To specify different values of parameters for each function, the name
         of the parameter must be prepended with the substring
@@ -216,30 +219,30 @@ def process_song (
     librosa.feature.tempogram
     librosa.feature.mfcc
     librosa.feature.delta
-    compute_params
+    compute_kwargs
 
     """
 
-    # Read the raw song.
-    y, params['sr'] = _lr.load(
+    # Read raw song.
+    y, kwargs['sr'] = _lr.load(
         path = path,
-        sr = params.get('sr', 22050),
+        sr = kwargs.get('sr', 22050),
         mono = True,
-        dtype = params.get('load_dtype', params.get('dtype', _np.float32))
+        dtype = kwargs.get('load_dtype', kwargs.get('dtype', _np.float32))
     )
     y /= max(_np.absolute(y).max(axis = None), 1.0)
-    params['sr'] = int(params['sr'])
+    kwargs['sr'] = int(kwargs['sr'])
 
     # If needed, compute parameters.
     if comp:
-        params = compute_params(**params)
+        kwargs = compute_params(**kwargs)
 
     # Separate harmonics and percussives.
     y_harmonic, y_percussive = _lr.effects.hpss(
         y = y,
-        kernel_size = params.get(
+        kernel_size = kwargs.get(
             'hpss_kernel_size',
-            params.get('kernel_size', 31)
+            kwargs.get('kernel_size', 31)
         )
     )
     y_harmonic /= max(_np.absolute(y_harmonic).max(axis = None), 1.0)
@@ -248,82 +251,111 @@ def process_song (
     # Compute zero-crossing rate features.
     zcr = _lr.feature.zero_crossing_rate(
         y = y,
-        frame_length = params.get(
+        frame_length = kwargs.get(
             'zero_crossing_rate_frame_length',
-            params.get('frame_length', 2048)
+            kwargs.get('frame_length', 2048)
         ),
-        hop_length = params.get(
+        hop_length = kwargs.get(
             'zero_crossing_length_hop_length',
-            params.get('hop_length', 512)
+            kwargs.get('hop_length', 512)
         )
     )
 
     # Compute chroma features.
     chromagram = _lr.feature.chroma_cqt(
         y = y_harmonic,
-        sr = params.get('sr', 22050),
-        hop_length = params.get(
+        sr = kwargs.get('sr', 22050),
+        hop_length = kwargs.get(
             'chroma_cqt_hop_length',
-            params.get('hop_length', 512)
+            kwargs.get('hop_length', 512)
         ),
-        norm = params.get(
+        fmin = kwargs.get(
+            'chroma_cqt_fmin',
+            kwargs.get('fmin', 32.70319566257482933473124919041309)
+                # defaul: C1
+        ),
+        norm = kwargs.get(
             'chroma_cqt_norm',
-            params.get('norm', float('inf'))
+            kwargs.get('norm', float('inf'))
         ),
-        n_chroma = params.get(
+        n_chroma = kwargs.get(
             'chroma_cqt_n_chroma',
-            params.get('n_chroma', 12)
+            kwargs.get('n_chroma', 12)
         ),
-        bins_per_octave = params.get(
+        n_octaves = kwargs.get(
+            'chroma_cqt_n_octaves',
+            kwargs.get('n_octaves', 7)
+        ),
+        bins_per_octave = kwargs.get(
             'chroma_cqt_bins_per_octave',
-            params.get('bins_per_octave', 36)
+            kwargs.get('bins_per_octave', 36)
         )
     )
 
     # Compute tempo features.
     tempogram = _lr.feature.tempogram(
         y = y_percussive,
-        sr = params.get('sr', 22050),
-        hop_length = params.get(
+        sr = kwargs.get('sr', 22050),
+        hop_length = kwargs.get(
             'tempogram_hop_length',
-            params.get('hop_length', 512)
+            kwargs.get('hop_length', 512)
         ),
-        win_length = params.get(
+        win_length = kwargs.get(
             'tempogram_win_length',
-            params.get('win_length', 384)
+            kwargs.get('win_length', 384)
         ),
-        norm = params.get(
+        norm = kwargs.get(
             'tempogram_norm',
-            params.get('norm', float('inf'))
+            kwargs.get('norm', float('inf'))
         )
     )
 
     # Compute MFC features and the first- and second-order differences.
     mfcc = _lr.feature.mfcc(
         y = y,
-        sr = params.get('sr', 22050),
-        hop_length = params.get(
+        sr = kwargs.get('sr', 22050),
+        hop_length = kwargs.get(
             'mfcc_hop_length',
-            params.get('hop_length', 512)
+            kwargs.get('hop_length', 512)
         ),
-        n_mfcc = params.get(
+        n_mfcc = kwargs.get(
             'mfcc_n_mfcc',
-            params.get('n_mfcc', 20)
+            kwargs.get('n_mfcc', 20)
+        ),
+        n_fft = kwargs.get(
+            'mffc_n_fft',
+            kwargs.get('n_fft', 2048)
+        ),
+        n_mels = kwargs.get(
+            'mffc_n_mels',
+            kwargs.get('n_mels', 128)
+        ),
+        fmin = kwargs.get(
+            'mffc_fmin',
+            kwargs.get('fmin', 0.0)
+        ),
+        fmax = kwargs.get(
+            'mffc_fmax',
+            kwargs.get('fmax', None)
+        ),
+        dtype = kwargs.get(
+            'mffc_dtype',
+            kwargs.get('dtype', _np.float32)
         )
     )
     mfcc_delta = _lr.feature.delta(
         data = mfcc,
-        width = params.get(
+        width = kwargs.get(
             'delta_width',
-            params.get('width', 9)
+            kwargs.get('width', 9)
         ),
         order = 1
     )
     mfcc_delta2 = _lr.feature.delta(
         data = mfcc,
-        width = params.get(
+        width = kwargs.get(
             'delta_width',
-            params.get('width', 9)
+            kwargs.get('width', 9)
         ),
         order = 2
     )
@@ -342,11 +374,11 @@ def process_song (
     if return_y:
         ret.append(y)
         if return_sr:
-            ret.append(params['sr'])
+            ret.append(kwargs['sr'])
         ret.append(y_harmonic)
         ret.append(y_percussive)
     elif return_sr:
-        ret.append(params['sr'])
+        ret.append(kwargs['sr'])
     ret.append(zcr)
     ret.append(chromagram)
     ret.append(tempogram)
