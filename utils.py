@@ -7,13 +7,14 @@ This script is a part of Davor Penzar's *[ESC](http://eurovision.tv/) Score
 Predictor* project.
 
 Author: [Davor Penzar `<davor.penzar@gmail.com>`](mailto:davor.penzar@gmail.com)
-Date: 2021-02-06
+Date: 2021-04-04
 Version: 1.0
 
 """
 
 # Import standard library.
 import math as _math
+import numbers as _numbers
 
 # Import SciPy packages.
 import numpy as _np
@@ -34,6 +35,165 @@ import librosa as _lr
 
 
 # Define custom functions.
+
+
+##  MISCELANEOUS FUNCTIONS
+
+def _infinite_iter_singleton (x):
+    """
+    Infinitely iterate over a singleton.
+
+    The function creates a generator that, when iterated over, returns the
+    provided singleton indefinitely.
+
+    Parameters
+    ----------
+    x
+        Singleton to yield.
+
+    Returns
+    -------
+    iter_x : iterable
+        Generator that always returns `x` and never stops; i. e.
+        `next(iter_x) is x` is always true and `next(iter_x)` never raises
+        `StopIteration`.
+
+    Notes
+    -----
+    The function is an auxiliary internal function.
+
+    """
+
+    while True:
+        yield x
+
+def rank_list (score, centralise = False, normalise = False):
+    """
+    Compute the rank list according to a score.
+
+    The highest score receives rank 0, the next receives rank 1 and so on.
+    If more than one score—let us denote the number `m`—should receive a rank
+    `i` (if there is a tie for the rank), the ranks are resolved either by
+    setting all ranks to `i` or by setting them all to `i + 0.5 * m`.  The
+    behaviour is determined by the parameter `centralise`.  Either way, the
+    next rank is `i + m`, and not `i + 1`.
+
+    Parameters
+    ----------
+    score : (n,) array_like
+        Scores to rank.
+
+    centralise : boolean, optional
+        If true, ties amongst `m` candidates for rank `i` are resolved by
+        setting the ranks to `i + 0.5 * m`; otherwise the ties are resolved by
+        setting the ranks to `i`.
+
+    normalise : boolean, optional
+        If true, ranks are normalised to set the lowest score to 1.  However,
+        if only a single score is observed or if all scores are equal, no
+        normalisation is done (all scores receive rank 0 instead).
+
+    Returns
+    -------
+    rank : (n,) numpy.ndarray
+        Ranks of the scores in `score`.  The value `rank[j]` represents the
+        rank of `score[j]`.  If all values are integral, the data type
+        (`dtype`) of the array is an integral data type; otherwise it is a
+        floating point type.  Note that values could only be non-integral if
+        parameter `centralise` is true and a tie amongst an odd number of
+        candidates must be resolved, or the parameter `normalise` is true and a
+        non-normalised score exceeds 1.
+
+    """
+
+    # Prepare parameters.
+
+    score = _np.asarray(score).ravel()
+    ind = _np.flip(_np.argsort(score))
+
+    # Compute the ranks.
+
+    rank = list(0 for _ in range(int(score.size)))
+    floating = False
+
+    s = float('nan')
+    r = 0
+    e = set()
+    for i in ind:
+        if score[i] != s:
+            if centralise:
+                R = (
+                    r +
+                    (float(0.5 * len(e)) if (len(e) & 1) else (len(e) >> 1))
+                )
+                floating = floating or isinstance(R, _numbers.Integral)
+                for j in e:
+                    rank[j] = R
+            s = score[i]
+            r += len(e)
+            e = set()
+        rank[i] = r
+        e.add(i)
+
+    rank = _np.array(rank, dtype = _np.float64 if floating else _np.int64)
+    if (
+        normalise and
+        rank.size > 1 and
+        _np.max(rank) > 1 and
+        not _np.all(_np.isclose(1.0, 1.0 + _np.diff(_np.sort(rank))))
+    ):
+        rank = _np.true_divide(rank, _np.max(rank))
+
+    # Return the computed ranks.
+    return rank
+
+def rank_list_diff (score, normalise = False):
+    """
+    Compute the differential rank list according to a score.
+
+    The differential rank of the `j`-th score is defined as
+    `max(score) - score[j]`.  Hence the highest score receives rank 0 and ties
+    amongst scores receive the same rank, as when computing ranks via
+    `rank_list` function.  Additionally, the differential rank may be
+    normalised so that the lowest score receives rank 1.  The advantage of the
+    differential rank list compared to the ordinary rank list is that not only
+    do ties receive the same rank, but close scores also receive closer ranks
+    than distant scores—in fact, the difference in ranks is proportional to the
+    difference in scores.
+
+    Parameters
+    ----------
+    score : (n,) array_like
+        Scores to rank.
+
+    normalise : boolean, optional
+        If true, ranks are normalised to set the lowest score to 1.  However,
+        if only a single score is observed or if all scores are equal, no
+        normalisation is done (all scores receive rank 0 instead).
+
+    Returns
+    -------
+    rank : (n,) numpy.ndarray
+        Differential ranks of the scores in `score`.  The value `rank[j]`
+        represents the differential rank of `score[j]`.
+
+    """
+
+    # Prepare parameters.
+
+    score = _np.asarray(score).ravel()
+
+    # Compute and return the differential ranks.
+
+    rank = score.max() - score
+    if (
+        normalise and
+        rank.size > 1 and
+        not _np.all(_np.isclose(1.0, 1.0 + _np.diff(_np.sort(rank))))
+    ):
+        rank = _np.true_divide(rank, _np.max(rank))
+
+    return rank
 
 
 ##  AUDIO MANIPULATION
@@ -127,8 +287,8 @@ def process_song (
     """
     Process a song.
 
-    The song's zero-crossing rate, chromagram, tempogram, MFC, MFC delta and
-    MFC delta^2 features are computed and returned.
+    The song's zero-crossing rate, chromagram, tempogram, STFT, MFC, MFC delta
+    and MFC delta^2 features are computed and returned.
 
     Parameters
     ----------
@@ -149,25 +309,36 @@ def process_song (
         Optional definitions of parameters `sr`, `fmin`, `fmax`, `kernel_size`,
         `hop_length`, `win_length`, `norm`, `n_chroma`, `n_fft`, `n_mels`,
         `n_mfcc`, `bins_per_octave` and `width` for functions
-        `librosa.effects.hpss`, `librosa.feature.chroma_cqt`,
-        `librosa.feature.tempogram`, `librosa.feature.mfcc` and
-        `librosa.feature.delta`.  If any of the parameters is undefined, its
-        default value is used.  If `comp` is true, any initial values (except
-        `sr` if it is not `None`) are overwritten.
+        `librosa.effects.hpss`, `librosa.effects.zero_crossing_rate`,
+        `librosa.feature.chroma_cqt`, `librosa.feature.tempogram`,
+        `librosa.stft`, `librosa.feature.mfcc` and `librosa.feature.delta`.  If
+        any of the parameters is undefined, its default value is used.  If
+        `comp` is true, any initial values (except `sr` if it is not `None`)
+        are overwritten.
 
         To specify different values of parameters for each function, the name
         of the parameter must be prepended with the substring
         `'{function_name}_'`, where `function_name` is the name of the function
         without the names of the packages and subpackages.  For instance, to
-        set a sepcial value for `hop_length` in `librosa.feature.mfcc`
-        function, a parameter `mfcc_hop_length'` should be
-        passed.  Such special definitions are searched before *global*
-        definitions (definitions without prefixes), even if the parameter is
-        used only in one of the functions (for instance, `n_chroma` is used
-        solely in `librosa.feature.chroma_cqt` but parameter
-        `chroma_cqt_n_chroma` still has precedence over it), and they are not
-        overwritten if `comp` is true.  However, parameter `sr` is necessarily
-        global and cannot be prefixed to use different values in functions.
+        set a sepcial value for `hop_length` in `librosa.stft` function, a
+        parameter `stft_hop_length'` should be passed.  Such special
+        definitions are searched before *global* definitions (definitions
+        without prefixes), even if the parameter is used only in one of the
+        functions (for instance, `n_chroma` is used solely in
+        `librosa.feature.chroma_cqt` but parameter `chroma_cqt_n_chroma` still
+        has precedence over it), and they are not overwritten if `comp` is
+        true.  However, parameter `sr` is necessarily global and cannot be
+        prefixed to use different values in functions.
+
+        Even though some parameters may be passed to `librosa.features.mfcc`
+        function if the MFC should be computed from a raw audio signal,
+        when using special definitions of parameters, check out if the parameter
+        is actually passed to `librosa.stft` function since the MFC is computed
+        from a pre-computed STFT. For instance, setting a parameter named
+        `mfcc_hop_length` has no effect because `hop_length` is actually used
+        by `librosa.stft` function, which is called before
+        `librosa.features.mfcc` function.  On the other hand, a globally named
+        parameter (e. g. `hop_length`) may be set to avoid such problems.
 
         **Note.** Parameter `sr` may be `None` to use the original input file's
         sample rate.
@@ -197,13 +368,16 @@ def process_song (
 
     zcr : (1, n) numpy.ndarray
         Fractions of zero-crossings.  Dimension `n` is the length of the track
-        in observed hops.
+        in observed frames of width `hop_length`.
 
     chromagram : (n_chroma, n) numpy.ndarray
         Chromagram matrix.
 
     tempogram : (win_length, n) numpy.ndarray
         Tempogram matrix.
+
+    S : (1 + n_fft // 2, n) numpy.ndarray
+        STFT matrix.
 
     mfcc : (n_mfcc, n, 2) numpy.ndarray
         MFC, MFC delta and MFC delta^2 features.  The first slice along the
@@ -217,6 +391,7 @@ def process_song (
     librosa.effects.zero_crossing_rate
     librosa.feature.chroma_cqt
     librosa.feature.tempogram
+    librosa.stft
     librosa.feature.mfcc
     librosa.feature.delta
     compute_kwargs
@@ -230,23 +405,76 @@ def process_song (
         mono = True,
         dtype = kwargs.get('load_dtype', kwargs.get('dtype', _np.float32))
     )
-    y /= max(_np.absolute(y).max(axis = None), 1.0)
+    y /= _np.absolute(y).max(axis = None)
     kwargs['sr'] = int(kwargs['sr'])
 
     # If needed, compute parameters.
     if comp:
         kwargs = compute_params(**kwargs)
 
+    # Compute STFT features.
+    S = _lr.stft(
+        y,
+        n_fft = kwargs.get(
+            'stft_n_fft',
+            kwargs.get('n_fft', 2048)
+        ),
+        hop_length = kwargs.get(
+            'stft_hop_length',
+            kwargs.get('hop_length', None)
+        ),
+        win_length = kwargs.get(
+            'stft_win_length',
+            kwargs.get('win_length', None)
+        ),
+        dtype = kwargs.get(
+            'stft_dtype',
+            None
+        )
+    )
+
     # Separate harmonics and percussives.
-    y_harmonic, y_percussive = _lr.effects.hpss(
-        y = y,
+    H, P = _lr.decompose.hpss(
+        S = S,
         kernel_size = kwargs.get(
             'hpss_kernel_size',
             kwargs.get('kernel_size', 31)
+        ),
+        power = kwargs.get(
+            'hpss_power',
+            kwargs.get('power', 2.0)
         )
     )
-    y_harmonic /= max(_np.absolute(y_harmonic).max(axis = None), 1.0)
-    y_percussive /= max(_np.absolute(y_percussive).max(axis = None), 1.0)
+    y_harmonic = _lr.istft(
+        stft_matrix = H,
+        hop_length = kwargs.get(
+            'stft_hop_length',
+            kwargs.get('hop_length', None)
+        ),
+        win_length = kwargs.get(
+            'stft_win_length',
+            kwargs.get('win_length', None)
+        ),
+        dtype = y.dtype,
+        length = y.shape[-1]
+    )
+    y_percussive = _lr.istft(
+        stft_matrix = P,
+        hop_length = kwargs.get(
+            'stft_hop_length',
+            kwargs.get('hop_length', None)
+        ),
+        win_length = kwargs.get(
+            'stft_win_length',
+            kwargs.get('win_length', None)
+        ),
+        dtype = y.dtype,
+        length = y.shape[-1]
+    )
+    y_harmonic /= _np.absolute(y_harmonic).max(axis = None)
+    y_percussive /= _np.absolute(y_percussive).max(axis = None)
+    del H
+    del P
 
     # Compute zero-crossing rate features.
     zcr = _lr.feature.zero_crossing_rate(
@@ -312,19 +540,69 @@ def process_song (
 
     # Compute MFC features and the first- and second-order differences.
     mfcc = _lr.feature.mfcc(
-        y = y,
+        y = None,
         sr = kwargs.get('sr', 22050),
+        S = _lr.power_to_db(
+            _lr.feature.melspectrogram(
+                y = None,
+                sr = kwargs.get('sr', 22050),
+                S = (
+                    _np.abs(S) **
+                    kwargs.get('mfcc_power', kwargs.get('power', 2.0))
+                ),
+                n_fft = kwargs.get(
+                    'stft_n_fft',
+                    kwargs.get('n_fft', 2048)
+                ),
+                hop_length = kwargs.get(
+                    'stft_hop_length',
+                    kwargs.get('hop_length', None)
+                ),
+                win_length = kwargs.get(
+                    'stft_win_length',
+                    kwargs.get('win_length', None)
+                ),
+                power = kwargs.get(
+                    'mfcc_power',
+                    kwargs.get('power', 2.0)
+                ),
+                n_mels = kwargs.get(
+                    'mffc_n_mels',
+                    kwargs.get('n_mels', 128)
+                ),
+                fmin = kwargs.get(
+                    'mffc_fmin',
+                    kwargs.get('fmin', 0.0)
+                ),
+                fmax = kwargs.get(
+                    'mffc_fmax',
+                    kwargs.get('fmax', None)
+                ),
+                dtype = kwargs.get(
+                    'mfcc_dtype',
+                    kwargs.get('dtype', _np.float32)
+                )
+            )
+        ),
+        n_fft = kwargs.get(
+            'stft_n_fft',
+            kwargs.get('n_fft', 2048)
+        ),
         hop_length = kwargs.get(
-            'mfcc_hop_length',
-            kwargs.get('hop_length', 512)
+            'stft_hop_length',
+            kwargs.get('hop_length', None)
+        ),
+        win_length = kwargs.get(
+            'stft_win_length',
+            kwargs.get('win_length', None)
+        ),
+        power = kwargs.get(
+            'mfcc_power',
+            kwargs.get('power', 2.0)
         ),
         n_mfcc = kwargs.get(
             'mfcc_n_mfcc',
             kwargs.get('n_mfcc', 20)
-        ),
-        n_fft = kwargs.get(
-            'mffc_n_fft',
-            kwargs.get('n_fft', 2048)
         ),
         n_mels = kwargs.get(
             'mffc_n_mels',
@@ -339,7 +617,7 @@ def process_song (
             kwargs.get('fmax', None)
         ),
         dtype = kwargs.get(
-            'mffc_dtype',
+            'mfcc_dtype',
             kwargs.get('dtype', _np.float32)
         )
     )
@@ -367,6 +645,8 @@ def process_song (
         ),
         axis = -1
     )
+    del mfcc_delta
+    del mfcc_delta2
 
     # Return computed features.
 
@@ -382,11 +662,12 @@ def process_song (
     ret.append(zcr)
     ret.append(chromagram)
     ret.append(tempogram)
+    ret.append(S)
     ret.append(mfcc)
 
     return tuple(ret)
 
-def _rays_pi_6th (x, y, m, n = None, dtype = _np.floating):
+def _rays_pi_6th (x, y, m, n = None, dtype = _np.float32):
     r"""
     Generate masks for rays between angles of integral multiples of pi/6 in the first quadrant.
 
@@ -462,7 +743,7 @@ def _rays_pi_6th (x, y, m, n = None, dtype = _np.floating):
     # Return the computed mask.
     return mask
 
-def _circ (x, y, m, n = None, dtype = _np.floating):
+def _circ (x, y, m, n = None, dtype = _np.float32):
     r"""
     Generate masks for a circle (ellipse).
 
@@ -524,7 +805,7 @@ def _circ (x, y, m, n = None, dtype = _np.floating):
 def circ_12ths (
     m,
     n = None,
-    dtype = _np.floating,
+    dtype = _np.float32,
     super_scale = None,
     mem_econ = True
 ):
@@ -901,6 +1182,97 @@ def tensor_var_svd (Y, axis = -1, return_d = False, tucker_kwargs = dict()):
 
     return ret[0] if len(ret) == 1 else tuple(ret)
 
+def tensor_cov (Xs, axis = -1):
+    r"""
+    Compute covariance of a sample arranged in tensors.
+
+    The covariance of tensor-shaped samples
+    $ X_{0} , X_{1} , \dotsc , X_{m - 1} $ is defined as the sum of all
+    elements in the inner product of tensors $ X_{i} - \bar{X_{i}} $ for
+    indices $ i = 0 , 1 , \dotsc , m - 1 $ (the mean of all observations in a
+    single tensor is subtracted from each observation, and then the transformed
+    observations are joined in the transformed sample in the same way as the
+    original observations were joined into $ X_{i} $; the mean is computed
+    pointwise, i. e. the "mean observation" is of the same shape as all
+    original observations, but each of its elements is the mean of the elements
+    at the corresponding positions in the original observations) divided by the
+    appropriate denominator.  The denominator is $ n - df $, where $ n $ is the
+    number of observations and $ df $ are the degrees of freedom.
+
+    Parameters
+    ----------
+    Xs : iterable of (m1, m2, ..., n, ..., mk) array
+        Original samples in the form of tensors, all of which are of the same
+        sshape.  Let us denote the size of the tensors along the axis `axis` as
+        `n`.  Then each of the tensors' `n` slices along the axis represent a
+        single observation.
+
+        If `Xs` contains only a single element, its variance computed via
+        `tensor_var` function is returned.
+
+    axis : int or iterable of int, optional
+        Axis along which the observations are joined into the tensor `Y`. If
+        `axis` is negative, it counts from the last to the first axis, -1 being
+        the last.
+
+        If a single value is passed, the value is used for all tensors in `Xs`.
+        Otherwise the iterable must contain exactly the same number of elements
+        in as `Xs` so that the `j`-th axis can be used for the `j`-th tensor.
+
+    Returns
+    -------
+    float
+        Sum of elements in the inner product of $ X_{i} - \bar{X_{i}} $ for
+        $ X_{i} $ in `Xs`.  This value can be considered as the total cvariance
+        of the samples, multiplied by `n` minus the degrees of freedom.
+
+    Raises
+    ------
+    ValueError
+        If `Xs` is empty or the tensors are not of the same size along the axis
+        `axis` or the number of provided axes in `axis` does not match the
+        number of tensors in `Xs`.
+
+    See also
+    --------
+    tensor_var
+
+    """
+
+    # Prepare parameters.
+
+    single_axis = False
+    if _np.isscalar(axis):
+        axis = _infinite_iter_singleton(axis)
+        single_axis = True
+    else:
+        axis = tuple(axis)
+    Xs = tuple(
+        _np.moveaxis(X, ax, 0) for X, ax in zip(Xs, axis)
+    )
+    if not (
+        len(Xs) and
+        all(X.shape == Xs[0] for X in Xs) and
+        (single_axis or len(axis) == len(Xs))
+    ):
+        raise ValueError('Either no tensor is provided or they are not of the same shape or the number of axes provided does not match the number of tensors.')
+
+    # Compute and return the covariance.
+
+    if len(Xs) == 1:
+        return tensor_var(Xs[0], axis = 0)
+    
+    return _np.sum(
+        _np.prod(
+            list(
+                X - _np.mean(X, axis = ax, keepdims = True)
+                    for X, ax in zip(Xs, axis)
+            ),
+            axis = 0
+        ),
+        axis = 0
+    )
+
 
 ##  TENSOR SAMPLES
 
@@ -973,7 +1345,7 @@ def _round_indices (ind):
 
     """
 
-    return _np.round(ind).ravel().astype(_np.integer)
+    return _np.round(ind).ravel().astype(_np.int32)
 
 def _minimal_integral_index_difference (ind):
     """
@@ -1065,8 +1437,8 @@ def _interpolating_indexed_array (a, ind):
     ind = _np.asarray(ind).ravel()
 
     # Compute auxiliary indices.
-    floor_ind = _np.floor(ind).astype(_np.integer)
-    ceil_ind = _np.ceil(ind).astype(_np.integer)
+    floor_ind = _np.floor(ind).astype(_np.int32)
+    ceil_ind = _np.ceil(ind).astype(_np.int32)
     frac_ind = ind - floor_ind
     while frac_ind.ndim < a.ndim:
         frac_ind = _np.expand_dims(frac_ind, frac_ind.ndim)
@@ -1207,7 +1579,7 @@ def diverse_sample (
         `early_stop` consequent iterations, the algorithm breaks early.
         Otherwise all `n_iter` iterations are run.
 
-    random_state : None or numpy.random.RandomState, optional
+    random_state : None or numpy.random.Generator, optional
         Random state of the algorithm (for reproducibility of results).
 
     return_ind : boolean, optional
@@ -1257,7 +1629,7 @@ def diverse_sample (
     if early_stop is None:
         early_stop = n_iter
     if random_state is None:
-        random_state = _np.random
+         random_state = _np.random.default_rng()
 
     # Initialise values.
     max_ind = None
@@ -1347,7 +1719,7 @@ def diverse_sample_optd (
         `axis` is negative, it counts from the last to the first axis, -1 being
         the last.
 
-    random_state : None or numpy.random.RandomState, optional
+    random_state : None or numpy.random.Generator, optional
         Random state of the algorithm (for reproducibility of results).  This
         is only used to produce the initial guess for `scipy.optimize.minimize`
         function.
@@ -1421,7 +1793,7 @@ def diverse_sample_optd (
     Y = _np.moveaxis(Y, axis, 0)
 
     if random_state is None:
-        random_state = _np.random
+         random_state = _np.random.default_rng()
 
     # Find the most diverse subsample.
     res = _spo.minimize(
@@ -1493,7 +1865,7 @@ def diverse_sample_optc (
         `axis` is negative, it counts from the last to the first axis, -1 being
         the last.
 
-    random_state : None or numpy.random.RandomState, optional
+    random_state : None or numpy.random.Generator, optional
         Random state of the algorithm (for reproducibility of results).  This
         is only used to produce the initial guess for `scipy.optimize.minimize`
         function.
@@ -1567,7 +1939,7 @@ def diverse_sample_optc (
     Y = _np.moveaxis(Y, axis, 0)
 
     if random_state is None:
-        random_state = _np.random
+         random_state = _np.random.default_rng()
 
     # Find the most diverse subsample.
     res = _spo.minimize(
@@ -1662,7 +2034,7 @@ def _absolute_subsample_sizes (total, size):
         n.append(round(u * total))
         total -= n[-1]
     del size
-    n = _np.array(n, dtype = _np.integer)
+    n = _np.array(n, dtype = _np.int32)
     r = _np.insert(n.cumsum(), 0, 0)
 
     # Return computed arrays.
@@ -1880,8 +2252,8 @@ def split_sample (
     Xs : iterable of array_like
         Original samples in the form of tensors, all of which are of the same
         size along the axis `axis` (see parameter below).  Let us denote the
-        of the tensors along the axis `axis` as `n`.  Then each of the tensors'
-        `n` slices along the axis represent a single observation.
+        size of the tensors along the axis `axis` as `n`.  Then each of the
+        tensors' `n` slices along the axis represent a single observation.
 
         Passing more than one sample set is enabled to allow splitting a
         dataset according to both inputs and outputs (for example, a dataset
@@ -1894,10 +2266,14 @@ def split_sample (
         sizes are computed by rounding the values of
         `size / numpy.sum(size) * n` so that the sum equals to `n`.
 
-    axis : int, optional
+    axis : int or iterable of int, optional
         Axis along which the observations are joined into the tensors in `Xs`.
         If `axis` is negative, it counts from the last to the first axis, -1
         being the last.
+
+        If a single value is passed, the value is used for all tensors in `Xs`.
+        Otherwise the iterable must contain exactly the same number of elements
+        in as `Xs` so that the `j`-th axis can be used for the `j`-th tensor.
 
     n_iter : int, optional
         (Maximal) number of iterations of the algorithm.
@@ -1925,7 +2301,7 @@ def split_sample (
         `tensor_var` function is divided by the number of observations
         decremented by 1.
 
-    random_state : None or numpy.random.RandomState, optional
+    random_state : None or numpy.random.Generator, optional
         Random state of the algorithm (for reproducibility of results).
 
     return_ind : boolean, optional
@@ -1957,7 +2333,8 @@ def split_sample (
     ------
     ValueError
         If `Xs` is empty or the tensors are not of the same size along the axis
-        `axis`.
+        `axis` or the number of provided axes in `axis` does not match the
+        number of tensors in `Xs`.
 
     See Also
     --------
@@ -1970,16 +2347,28 @@ def split_sample (
 
     # Prepare parameters.
 
-    Xs = tuple(_np.moveaxis(X, axis, 0) for X in Xs)
-    if not len(Xs) or not all(X.shape[0] == Xs[0].shape[0] for X in Xs):
-        raise ValueError('Either no tensor is provided or they are not of the same size along the provided axis.')
+    single_axis = False
+    if _np.isscalar(axis):
+        axis = _infinite_iter_singleton(axis)
+        single_axis = True
+    else:
+        axis = tuple(axis)
+    Xs = tuple(
+        _np.moveaxis(X, ax, 0) for X, ax in zip(Xs, axis)
+    )
+    if not (
+        len(Xs) and
+        all(X.shape[ax] == Xs[0].shape[axis[0]] for X, ax in zip(Xs, axis)) and
+        (single_axis or len(axis) == len(Xs))
+    ):
+        raise ValueError('Either no tensor is provided or they are not of the same shape along the provided axes or the number of axes provided does not match the number of tensors.')
 
     if early_stop is None:
         early_stop = n_iter
     if diff_weights is None:
         diff_weights = 1
     if random_state is None:
-        random_state = _np.random
+         random_state = _np.random.default_rng()
 
     n, r = _absolute_subsample_sizes(Xs[0].shape[0], size)
     del size
@@ -2028,7 +2417,8 @@ def split_sample (
         _np.sort(min_ind[r[a]:r[a + 1]]) for a in range(n.size)
     )
     min_Xs = tuple(
-        tuple(_np.moveaxis(X[I], 0, axis) for I in min_ind) for X in Xs
+        tuple(_np.moveaxis(X[I], 0, axis) for I in min_ind)
+            for X, ax in zip(Xs, axis)
     )
 
     # Return computed values.
@@ -2089,8 +2479,8 @@ def split_sample_optd (
     Xs : iterable of array_like
         Original samples in the form of tensors, all of which are of the same
         size along the axis `axis` (see parameter below).  Let us denote the
-        of the tensors along the axis `axis` as `n`.  Then each of the tensors'
-        `n` slices along the axis represent a single observation.
+        size of the tensors along the axis `axis` as `n`.  Then each of the
+        tensors' `n` slices along the axis represent a single observation.
 
         Passing more than one sample set is enabled to allow splitting a
         dataset according to both inputs and outputs (for example, a dataset
@@ -2103,10 +2493,14 @@ def split_sample_optd (
         sizes are computed by rounding the values of
         `size / numpy.sum(size) * n` so that the sum equals to `n`.
 
-    axis : int, optional
+    axis : int or iterable of int, optional
         Axis along which the observations are joined into the tensors in `Xs`.
         If `axis` is negative, it counts from the last to the first axis, -1
         being the last.
+
+        If a single value is passed, the value is used for all tensors in `Xs`.
+        Otherwise the iterable must contain exactly the same number of elements
+        in as `Xs` so that the `j`-th axis can be used for the `j`-th tensor.
 
     n_iter : int, optional
         (Maximal) number of iterations of the algorithm.
@@ -2134,7 +2528,7 @@ def split_sample_optd (
         `tensor_var` function is divided by the number of observations
         decremented by 1.
 
-    random_state : None or numpy.random.RandomState, optional
+    random_state : None or numpy.random.Generator, optional
         Random state of the algorithm (for reproducibility of results).
 
         **Note.** The random state is used only to generate the initial guess
@@ -2183,7 +2577,8 @@ def split_sample_optd (
     ------
     ValueError
         If `Xs` is empty or the tensors are not of the same size along the axis
-        `axis`.
+        `axis` or the number of provided axes in `axis` does not match the
+        number of tensors in `Xs`.
 
     Notes
     -----
@@ -2211,14 +2606,26 @@ def split_sample_optd (
 
     # Prepare parameters.
 
-    Xs = tuple(_np.moveaxis(X, axis, 0) for X in Xs)
-    if not len(Xs) or not all(X.shape[0] == Xs[0].shape[0] for X in Xs):
-        raise ValueError('Either no tensor is provided or they are not of the same size along the provided axis.')
+    single_axis = False
+    if _np.isscalar(axis):
+        axis = _infinite_iter_singleton(axis)
+        single_axis = True
+    else:
+        axis = tuple(axis)
+    Xs = tuple(
+        _np.moveaxis(X, ax, 0) for X, ax in zip(Xs, axis)
+    )
+    if not (
+        len(Xs) and
+        all(X.shape[ax] == Xs[0].shape[axis[0]] for X, ax in zip(Xs, axis)) and
+        (single_axis or len(axis) == len(Xs))
+    ):
+        raise ValueError('Either no tensor is provided or they are not of the same shape along the provided axes or the number of axes provided does not match the number of tensors.')
 
     if diff_weights is None:
         diff_weights = 1
     if random_state is None:
-        random_state = _np.random
+         random_state = _np.random.default_rng()
 
     n, r = _absolute_subsample_sizes(Xs[0].shape[0], size)
     del size
@@ -2253,7 +2660,8 @@ def split_sample_optd (
         _np.sort(min_ind[r[a]:r[a + 1]]) for a in range(n.size)
     )
     min_Xs = tuple(
-        tuple(_np.moveaxis(X[I], 0, axis) for I in min_ind) for X in Xs
+        tuple(_np.moveaxis(X[I], 0, ax) for I in min_ind)
+            for X, ax in zip(Xs, axis)
     )
 
     # Return computed values.
@@ -2332,10 +2740,14 @@ def split_sample_optc (
         sizes are computed by rounding the values of
         `size / numpy.sum(size) * n` so that the sum equals to `n`.
 
-    axis : int, optional
+    axis : int or iterable of int, optional
         Axis along which the observations are joined into the tensors in `Xs`.
         If `axis` is negative, it counts from the last to the first axis, -1
         being the last.
+
+        If a single value is passed, the value is used for all tensors in `Xs`.
+        Otherwise the iterable must contain exactly the same number of elements
+        in as `Xs` so that the `j`-th axis can be used for the `j`-th tensor.
 
     n_iter : int, optional
         (Maximal) number of iterations of the algorithm.
@@ -2363,7 +2775,7 @@ def split_sample_optc (
         `tensor_var` function is divided by the number of observations
         decremented by 1.
 
-    random_state : None or numpy.random.RandomState, optional
+    random_state : None or numpy.random.Generator, optional
         Random state of the algorithm (for reproducibility of results).
 
         **Note.** The random state is used only to generate the initial guess
@@ -2412,7 +2824,8 @@ def split_sample_optc (
     ------
     ValueError
         If `Xs` is empty or the tensors are not of the same size along the axis
-        `axis`.
+        `axis` or the number of provided axes in `axis` does not match the
+        number of tensors in `Xs`.
 
     Notes
     -----
@@ -2440,14 +2853,26 @@ def split_sample_optc (
 
     # Prepare parameters.
 
-    Xs = tuple(_np.moveaxis(X, axis, 0) for X in Xs)
-    if not len(Xs) or not all(X.shape[0] == Xs[0].shape[0] for X in Xs):
-        raise ValueError('Either no tensor is provided or they are not of the same size along the provided axis.')
+    single_axis = False
+    if _np.isscalar(axis):
+        axis = _infinite_iter_singleton(axis)
+        single_axis = True
+    else:
+        axis = tuple(axis)
+    Xs = tuple(
+        _np.moveaxis(X, ax, 0) for X, ax in zip(Xs, axis)
+    )
+    if not (
+        len(Xs) and
+        all(X.shape[ax] == Xs[0].shape[axis[0]] for X, ax in zip(Xs, axis)) and
+        (single_axis or len(axis) == len(Xs))
+    ):
+        raise ValueError('Either no tensor is provided or they are not of the same shape along the provided axes or the number of axes provided does not match the number of tensors.')
 
     if diff_weights is None:
         diff_weights = 1
     if random_state is None:
-        random_state = _np.random
+         random_state = _np.random.default_rng()
 
     n, r = _absolute_subsample_sizes(Xs[0].shape[0], size)
     del size
@@ -2482,7 +2907,8 @@ def split_sample_optc (
         _np.sort(min_ind[r[a]:r[a + 1]]) for a in range(n.size)
     )
     min_Xs = tuple(
-        tuple(_np.moveaxis(X[I], 0, axis) for I in min_ind) for X in Xs
+        tuple(_np.moveaxis(X[I], 0, ax) for I, ax in min_ind)
+            for X, ax in zip(Xs, axis)
     )
 
     # Return computed values.
