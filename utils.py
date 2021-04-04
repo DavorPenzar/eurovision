@@ -67,7 +67,7 @@ def _infinite_iter_singleton (x):
     while True:
         yield x
 
-def rank_list (score, centralise = False, normalise = False):
+def rank_list (score, mode = 'count', normalise = False):
     """
     Compute the rank list according to a score.
 
@@ -75,18 +75,21 @@ def rank_list (score, centralise = False, normalise = False):
     If more than one score—let us denote the number `m`—should receive a rank
     `i` (if there is a tie for the rank), the ranks are resolved either by
     setting all ranks to `i` or by setting them all to `i + 0.5 * m`.  The
-    behaviour is determined by the parameter `centralise`.  Either way, the
-    next rank is `i + m`, and not `i + 1`.
+    behaviour is determined by parameter `mode`, which also determines the rank
+    of the next score.
 
     Parameters
     ----------
     score : (n,) array_like
         Scores to rank.
 
-    centralise : boolean, optional
-        If true, ties amongst `m` candidates for rank `i` are resolved by
-        setting the ranks to `i + 0.5 * m`; otherwise the ties are resolved by
-        setting the ranks to `i`.
+    mode : 'inc' or 'increment' or 'count' or 'counting' or 'center' or 'centralise', optional
+        If 'inc'/'icrement' or 'count'/'counting', ties amongst `m` candidates
+        for rank `i` are resolved by setting the ranks to `i`; if
+        'center'/'centralise', the ties are resolved by setting the ranks to
+        `i + 0.5 * m`.  Furthermore, if 'inc'/'icrement', the next rank is set
+        to `i + 1`; if 'count'/'counting or 'center'/'centralise', the next
+        rank is set to `i + m`.
 
     normalise : boolean, optional
         If true, ranks are normalised to set the lowest score to 1.  However,
@@ -100,9 +103,14 @@ def rank_list (score, centralise = False, normalise = False):
         rank of `score[j]`.  If all values are integral, the data type
         (`dtype`) of the array is an integral data type; otherwise it is a
         floating point type.  Note that values could only be non-integral if
-        parameter `centralise` is true and a tie amongst an odd number of
-        candidates must be resolved, or the parameter `normalise` is true and a
+        centralising mode is used and a tie amongst an odd number of candidates
+        must be resolved, or the parameter `normalise` is true and a
         non-normalised score exceeds 1.
+
+    Raises
+    ------
+    ValueError
+        If `mode` is an unrecognised value.
 
     """
 
@@ -110,6 +118,14 @@ def rank_list (score, centralise = False, normalise = False):
 
     score = _np.asarray(score).ravel()
     ind = _np.flip(_np.argsort(score))
+
+    mode = \
+        0 if mode in {'inc', 'increment'} \
+        else 1 if mode in {'count', 'counting'} \
+        else 2 if mode in {'center', 'centralise'} \
+        else None
+    if mode is None:
+        raise ValueError('Unrecognised mode.')
 
     # Compute the ranks.
 
@@ -121,7 +137,7 @@ def rank_list (score, centralise = False, normalise = False):
     e = set()
     for i in ind:
         if score[i] != s:
-            if centralise:
+            if mode == 2:
                 R = (
                     r +
                     (float(0.5 * len(e)) if (len(e) & 1) else (len(e) >> 1))
@@ -130,7 +146,7 @@ def rank_list (score, centralise = False, normalise = False):
                 for j in e:
                     rank[j] = R
             s = score[i]
-            r += len(e)
+            r += 1 if mode == 0 else len(e)
             e = set()
         rank[i] = r
         e.add(i)
@@ -189,6 +205,7 @@ def rank_list_diff (score, normalise = False):
     if (
         normalise and
         rank.size > 1 and
+        _np.max(rank) != 1 and
         not _np.all(_np.isclose(1.0, 1.0 + _np.diff(_np.sort(rank))))
     ):
         rank = _np.true_divide(rank, _np.max(rank))
