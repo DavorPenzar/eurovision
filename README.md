@@ -4,7 +4,7 @@ Creation of a machine-learning model for predicting scores in the [*Eurovision S
 
 ##  Used Values
 
-Function [`utils.compute_params`](utils.py#L41) was not actually used in the production.  Instead, the parameters dictionary was created manually by setting
+Function [`utils.compute_params`](utils.py#L218) was not actually used in the production.  Instead, the parameters dictionary was created manually by setting
 
 ```Python
 params = {
