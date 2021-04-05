@@ -7,7 +7,7 @@ This script is a part of Davor Penzar's *[ESC](http://eurovision.tv/) Score
 Predictor* project.
 
 Author: [Davor Penzar `<davor.penzar@gmail.com>`](mailto:davor.penzar@gmail.com)
-Date: 2021-04-04
+Date: 2021-04-05
 Version: 1.0
 
 """
@@ -201,7 +201,7 @@ def rank_list_diff (score, normalise = False):
 
     # Compute and return the differential ranks.
 
-    rank = score.max() - score
+    rank = _np.max(score) - score
     if (
         normalise and
         rank.size > 1 and
@@ -422,7 +422,7 @@ def process_song (
         mono = True,
         dtype = kwargs.get('load_dtype', kwargs.get('dtype', _np.float32))
     )
-    y /= _np.absolute(y).max(axis = None)
+    y /= _np.max(_np.absolute(y))
     kwargs['sr'] = int(kwargs['sr'])
 
     # If needed, compute parameters.
@@ -488,8 +488,8 @@ def process_song (
         dtype = y.dtype,
         length = y.shape[-1]
     )
-    y_harmonic /= _np.absolute(y_harmonic).max(axis = None)
-    y_percussive /= _np.absolute(y_percussive).max(axis = None)
+    y_harmonic /= _np.max(_np.absolute(y_harmonic))
+    y_percussive /= _np.max(_np.absolute(y_percussive))
     del H
     del P
 
@@ -811,7 +811,9 @@ def _circ (x, y, m, n = None, dtype = _np.float32):
     y = _np.asarray(y)
 
     # Compute transformed distances from the origin.
-    dist = _np.sqrt(_np.square(x / m) + _np.square(y / n))
+    dist = _np.sqrt(
+        _np.square(_np.true_divide(x, m)) + _np.square(_np.true_divide(y, n))
+    )
 
     # Compute the mask for the circle (ellipse).
     mask = _np.asarray((dist <= 1.0), dtype = dtype)
@@ -917,10 +919,10 @@ def circ_12ths (
     N = n
 
     if super_scale is not None:
-        if hasattr(super_scale, '__iter__'):
-            super_scale = list(super_scale)
-        else:
+        if _np.isscalar(super_scale):
             super_scale = [super_scale, super_scale]
+        else:
+            super_scale = list(super_scale)
         super_scale = tuple(super_scale + [1])
 
         # Augment dimensions `m` and `n` by the corresponding factors.
@@ -999,8 +1001,8 @@ def as_audio (y):
 
     """
 
-    return (0o77777 * _np.asarray(y)).round().astype(_np.int16)
-        # (32767 * _np.asarray(y)).round().astype(_np.int16)
+    return _np.round(0o77777 * _np.asarray(y)).astype(_np.int16)
+        # _np.round(32767 * _np.asarray(y)).astype(_np.int16)
 
 
 ##  TENSOR VARIANCE
@@ -1053,10 +1055,13 @@ def tensor_var (Y, axis = -1):
 
     """
 
-    return _np.sum(
-        _np.square(Y - _np.mean(Y, axis = axis, keepdims = True)),
-        axis = None
-    )
+    # Prepare parameter.
+
+    Y = _np.asarray(Y)
+
+    # Compute and return the variance.
+
+    return _np.sum(_np.square(Y - _np.mean(Y, axis = axis, keepdims = True)))
 
 def tensor_var_vec (Y, axis = -1, **kwargs):
     r"""
@@ -1105,7 +1110,6 @@ def tensor_var_vec (Y, axis = -1, **kwargs):
 
     return _np.cov(
         _tl.unfold(Y, mode = axis),
-        y = None,
         rowvar = False,
         **kwargs
     )
@@ -1175,6 +1179,10 @@ def tensor_var_svd (Y, axis = -1, return_d = False, tucker_kwargs = dict()):
 
     """
 
+    # Prepare parameter.
+
+    Y = _np.asarray(Y)
+
     # Compute the decomposition of `Y` - `mean(Y)`.
     S, U = _tld.tucker(
         Y - _np.mean(Y, axis = axis, keepdims = True),
@@ -1183,10 +1191,7 @@ def tensor_var_svd (Y, axis = -1, return_d = False, tucker_kwargs = dict()):
 
     # Compute variances (squares of `axis`-mode singular values).
     sv2 = _np.array(
-        list(
-            _np.sum(_np.square(s), axis = None)
-                for s in _np.moveaxis(S, axis, 0)
-        )
+        list(_np.sum(_np.square(s)) for s in _np.moveaxis(S, axis, 0))
     )
 
     # Return computed arrays.
@@ -1324,10 +1329,7 @@ def _truncate_indices (a, ind, axis = -1):
 
     """
 
-    return _np.maximum(
-        _np.minimum(_np.asarray(ind).ravel(), _np.asarray(a).shape[0] - 1),
-        0
-    )
+    return _np.clip(_np.asarray(ind).ravel(), 0, _np.asarray(a).shape[0] - 1)
 
 def _round_indices (ind):
     """
@@ -1398,7 +1400,7 @@ def _minimal_integral_index_difference (ind):
 
     """
 
-    return _np.diff(_np.sort(_round_indices(ind))).min()
+    return _np.min(_np.diff(_np.sort(_round_indices(ind))))
 
 def _interpolating_indexed_array (a, ind):
     """
@@ -2414,8 +2416,7 @@ def split_sample (
         d = _np.sum(
             diff_weights * _np.square(
                 _samples_variance_difference(Xs, v, vd, n, r, ind)
-            ),
-            axis = None
+            )
         )
 
         # Compare the new subsamples.
@@ -2663,8 +2664,7 @@ def split_sample_optd (
                     r,
                     _round_indices(_truncate_indices(Xs[0], ind))
                 )
-            ),
-            axis = None
+            )
         ),
         random_state.permutation(Xs[0].shape[0]),
         tuple(),
@@ -2910,8 +2910,7 @@ def split_sample_optc (
                     r,
                     _truncate_indices(Xs[0], ind)
                 )
-            ),
-            axis = None
+            )
         ),
         random_state.permutation(Xs[0].shape[0]),
         tuple(),
