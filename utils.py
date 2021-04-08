@@ -7,7 +7,7 @@ This script is a part of Davor Penzar's *[ESC](http://eurovision.tv/) Score
 Predictor* project.
 
 Author: [Davor Penzar `<davor.penzar@gmail.com>`](mailto:davor.penzar@gmail.com)
-Date: 2021-04-05
+Date: 2021-04-08
 Version: 1.0
 
 """
@@ -54,9 +54,8 @@ def _infinite_iter_singleton (x):
     Returns
     -------
     iter_x : iterable
-        Generator that always returns `x` and never stops; i. e.
-        `next(iter_x) is x` is always true and `next(iter_x)` never raises
-        `StopIteration`.
+        Generator that always returns `x` and never stops (`next(iter_x)`
+        never raises `StopIteration`).
 
     Notes
     -----
@@ -67,11 +66,11 @@ def _infinite_iter_singleton (x):
     while True:
         yield x
 
-def rank_list (score, mode = 'count', normalise = False):
+def rank_list (score, ascending = False, mode = 'count', normalise = False):
     """
     Compute the rank list according to a score.
 
-    The highest score receives rank 0, the next receives rank 1 and so on.
+    The best score receives rank 0, the next receives rank 1 and so on.
     If more than one score—let us denote the number `m`—should receive a rank
     `i` (if there is a tie for the rank), the ranks are resolved either by
     setting all ranks to `i` or by setting them all to `i + 0.5 * m`.  The
@@ -82,6 +81,11 @@ def rank_list (score, mode = 'count', normalise = False):
     ----------
     score : (n,) array_like
         Scores to rank.
+
+    ascending : boolean, optional
+        If true, the lowest score receives rank 0 and the highest score
+        receives the highest rank.  Otherwise the highest score receives rank 0
+        and the lowest score receives the highest rank.
 
     mode : 'inc' or 'increment' or 'count' or 'counting' or 'center' or 'centralise', optional
         If 'inc'/'icrement' or 'count'/'counting', ties amongst `m` candidates
@@ -117,7 +121,9 @@ def rank_list (score, mode = 'count', normalise = False):
     # Prepare parameters.
 
     score = _np.asarray(score).ravel()
-    ind = _np.flip(_np.argsort(score))
+    ind = _np.argsort(score)
+    if not ascending:
+        ind = _np.flip(ind)
 
     mode = \
         0 if mode in {'inc', 'increment'} \
@@ -140,13 +146,14 @@ def rank_list (score, mode = 'count', normalise = False):
             if mode == 2:
                 R = (
                     r +
-                    (float(0.5 * len(e)) if (len(e) & 1) else (len(e) >> 1))
+                    (((len(e) - 1) >> 1) if (len(e) & 1) else float(0.5 * (len(e) - 1)))
                 )
                 floating = floating or isinstance(R, _numbers.Integral)
                 for j in e:
                     rank[j] = R
             s = score[i]
-            r += 1 if mode == 0 else len(e)
+            if e:
+                r += 1 if mode == 0 else len(e)
             e = set()
         rank[i] = r
         e.add(i)
@@ -155,23 +162,25 @@ def rank_list (score, mode = 'count', normalise = False):
     if (
         normalise and
         rank.size > 1 and
-        _np.max(rank) > 1 and
+        _np.amax(rank) > 1 and
         not _np.all(_np.isclose(1.0, 1.0 + _np.diff(_np.sort(rank))))
     ):
-        rank = _np.true_divide(rank, _np.max(rank))
+        rank = _np.true_divide(rank, _np.amax(rank))
 
     # Return the computed ranks.
     return rank
 
-def rank_list_diff (score, normalise = False):
+def rank_list_diff (score, ascending = False, normalise = False):
     """
     Compute the differential rank list according to a score.
 
     The differential rank of the `j`-th score is defined as
-    `max(score) - score[j]`.  Hence the highest score receives rank 0 and ties
-    amongst scores receive the same rank, as when computing ranks via
+    `max(score) - score[j]` if the highest score should receive the lowest rank
+    and `score[j] - min(score)` if the lowest rank should receive the lowest
+    rank (see parameter `ascending`).  Hence the best score receives rank 0
+    and ties amongst scores receive the same rank, as when computing ranks via
     `rank_list` function.  Additionally, the differential rank may be
-    normalised so that the lowest score receives rank 1.  The advantage of the
+    normalised so that the worst score receives rank 1.  The advantage of the
     differential rank list compared to the ordinary rank list is that not only
     do ties receive the same rank, but close scores also receive closer ranks
     than distant scores—in fact, the difference in ranks is proportional to the
@@ -181,6 +190,11 @@ def rank_list_diff (score, normalise = False):
     ----------
     score : (n,) array_like
         Scores to rank.
+
+    ascending : boolean, optional
+        If true, the lowest score receives rank 0 and the highest score
+        receives the highest rank.  Otherwise the highest score receives rank 0
+        and the lowest score receives the highest rank.
 
     normalise : boolean, optional
         If true, ranks are normalised to set the lowest score to 1.  However,
@@ -201,14 +215,14 @@ def rank_list_diff (score, normalise = False):
 
     # Compute and return the differential ranks.
 
-    rank = _np.max(score) - score
+    rank = score - _np.amin(score) if ascending else _np.amax(score) - score
     if (
         normalise and
         rank.size > 1 and
-        _np.max(rank) != 1 and
+        _np.amax(rank) != 1 and
         not _np.all(_np.isclose(1.0, 1.0 + _np.diff(_np.sort(rank))))
     ):
-        rank = _np.true_divide(rank, _np.max(rank))
+        rank = _np.true_divide(rank, _np.amax(rank))
 
     return rank
 
@@ -422,7 +436,7 @@ def process_song (
         mono = True,
         dtype = kwargs.get('load_dtype', kwargs.get('dtype', _np.float32))
     )
-    y /= _np.max(_np.absolute(y))
+    y /= _np.amax(_np.absolute(y))
     kwargs['sr'] = int(kwargs['sr'])
 
     # If needed, compute parameters.
@@ -488,8 +502,8 @@ def process_song (
         dtype = y.dtype,
         length = y.shape[-1]
     )
-    y_harmonic /= _np.max(_np.absolute(y_harmonic))
-    y_percussive /= _np.max(_np.absolute(y_percussive))
+    y_harmonic /= _np.amax(_np.absolute(y_harmonic))
+    y_percussive /= _np.amax(_np.absolute(y_percussive))
     del H
     del P
 
@@ -975,7 +989,7 @@ def circ_12ths (
         for i in range(3):
             mask[:, :, 3 * q + i] = _np.flip(
                 mask[:, :, 3 * q - i - 1],
-                axis = 1 - (q & 1)
+                axis = 1 - (q & 1) # mask = 1 - q % 2
             )
 
     # Return the computed mask.
@@ -1273,7 +1287,7 @@ def tensor_cov (Xs, axis = -1):
         _np.moveaxis(X, ax, 0) for X, ax in zip(Xs, axis)
     )
     if not (
-        len(Xs) and
+        Xs and
         all(X.shape == Xs[0] for X in Xs) and
         (single_axis or len(axis) == len(Xs))
     ):
@@ -1400,7 +1414,7 @@ def _minimal_integral_index_difference (ind):
 
     """
 
-    return _np.min(_np.diff(_np.sort(_round_indices(ind))))
+    return _np.amin(_np.diff(_np.sort(_round_indices(ind))))
 
 def _interpolating_indexed_array (a, ind):
     """
@@ -2101,7 +2115,7 @@ def _samples_variance_normalisation (Xs):
     """
 
     var = _np.asarray([tensor_var(X) / (X.shape[0] - 1) for X in Xs])
-    var_dn = _np.maximum(var, 1)
+    var_dn = _np.amaximum(var, 1)
 
     return (var, var_dn)
 
@@ -2376,7 +2390,7 @@ def split_sample (
         _np.moveaxis(X, ax, 0) for X, ax in zip(Xs, axis)
     )
     if not (
-        len(Xs) and
+        Xs and
         all(X.shape[ax] == Xs[0].shape[axis[0]] for X, ax in zip(Xs, axis)) and
         (single_axis or len(axis) == len(Xs))
     ):
@@ -2634,7 +2648,7 @@ def split_sample_optd (
         _np.moveaxis(X, ax, 0) for X, ax in zip(Xs, axis)
     )
     if not (
-        len(Xs) and
+        Xs and
         all(X.shape[ax] == Xs[0].shape[axis[0]] for X, ax in zip(Xs, axis)) and
         (single_axis or len(axis) == len(Xs))
     ):
@@ -2880,7 +2894,7 @@ def split_sample_optc (
         _np.moveaxis(X, ax, 0) for X, ax in zip(Xs, axis)
     )
     if not (
-        len(Xs) and
+        Xs and
         all(X.shape[ax] == Xs[0].shape[axis[0]] for X, ax in zip(Xs, axis)) and
         (single_axis or len(axis) == len(Xs))
     ):
