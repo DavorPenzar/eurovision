@@ -7,7 +7,7 @@ This script is a part of Davor Penzar's *[ESC](http://eurovision.tv/) Score
 Predictor* project.
 
 Author: [Davor Penzar `<davor.penzar@gmail.com>`](mailto:davor.penzar@gmail.com)
-Date: 2021-04-08
+Date: 2021-04-15
 Version: 1.0
 
 """
@@ -1015,8 +1015,8 @@ def as_audio (y):
 
     """
 
-    return _np.round(0o77777 * _np.asarray(y)).astype(_np.int16)
-        # _np.round(32767 * _np.asarray(y)).astype(_np.int16)
+    return _np.around(0o77777 * _np.asarray(y)).astype(_np.int16)
+        # _np.around(32767 * _np.asarray(y)).astype(_np.int16)
 
 
 ##  TENSOR VARIANCE
@@ -1350,7 +1350,7 @@ def _round_indices (ind):
     Round real-valued 1-dimensional indices to nearest integers.
 
     The function assumes 1-dimensional indices and returns them rounded to
-    nearest integral indices.  The rounding is computed using `numpy.round`
+    nearest integral indices.  The rounding is computed using `numpy.around`
     function.
 
     Parameters
@@ -1374,11 +1374,11 @@ def _round_indices (ind):
 
     See Also
     --------
-    numpy.round
+    numpy.around
 
     """
 
-    return _np.round(ind).ravel().astype(_np.int32)
+    return _np.around(ind).ravel().astype(_np.int32)
 
 def _minimal_integral_index_difference (ind):
     """
@@ -1801,7 +1801,7 @@ def diverse_sample_optd (
     -----
     The result of the optimisation (returned value `raw`) is converted to an
     actual index-array by rounding values of `raw.x` to integers using
-    `numpy.round` function and truncating them to fit into range
+    `numpy.around` function and truncating them to fit into range
     [0, `a.shape(axis)`) (also, they are sorted in the end).  This is done
     regardless of the value of `raw.success`, meaning the indices may not be in
     fact optimised.  As a result, it is not guaranteed that all indices are
@@ -1814,7 +1814,7 @@ def diverse_sample_optd (
     scipy.optimize.minimize
     scipy.optimize.OptimizeResult
     numpy.random.Random
-    numpy.round
+    numpy.around
     tensor_var
     diverse_sample
     diverse_sample_optc
@@ -1947,7 +1947,7 @@ def diverse_sample_optc (
     -----
     The result of the optimisation (returned value `raw`) is converted to an
     actual index-array by rounding values of `raw.x` to integers using
-    `numpy.round` function and truncating them to fit into range
+    `numpy.around` function and truncating them to fit into range
     [0, `a.shape(axis)`) (also, they are sorted in the end).  This is done
     regardless of the value of `raw.success`, meaning the indices may not be in
     fact optimised.  As a result, it is not guaranteed that all indices are
@@ -1960,7 +1960,7 @@ def diverse_sample_optc (
     scipy.optimize.minimize
     scipy.optimize.OptimizeResult
     numpy.random.Random
-    numpy.round
+    numpy.around
     tensor_var
     diverse_sample
     diverse_sample_optd
@@ -2616,7 +2616,7 @@ def split_sample_optd (
     -----
     The result of the optimisation (returned value `raw`) is converted to an
     actual index-array by rounding values of `raw.x` to integers using
-    `numpy.round` function and truncating them to fit into range
+    `numpy.around` function and truncating them to fit into range
     [0, `Xs[0].shape(axis)`).  The obtained array is then split into parts of
     sizes of the output subsamples (computed from the input parameter `size`);
     in the end, indices of each subsample (each part of the indices array) are
@@ -2629,7 +2629,7 @@ def split_sample_optd (
     See Also
     --------
     numpy.random.Random
-    numpy.round
+    numpy.around
     tensor_var
     split_sample
     split_sample_optd
@@ -2862,7 +2862,7 @@ def split_sample_optc (
     -----
     The result of the optimisation (returned value `raw`) is converted to an
     actual index-array by rounding values of `raw.x` to integers using
-    `numpy.round` function and truncating them to fit into range
+    `numpy.around` function and truncating them to fit into range
     [0, `Xs[0].shape(axis)`).  The obtained array is then split into parts of
     sizes of the output subsamples (computed from the input parameter `size`);
     in the end, indices of each subsample (each part of the indices array) are
@@ -2875,7 +2875,7 @@ def split_sample_optc (
     See Also
     --------
     numpy.random.Random
-    numpy.round
+    numpy.around
     tensor_var
     split_sample
     split_sample_optd
