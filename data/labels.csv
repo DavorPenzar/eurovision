@@ -1,50 +1,50 @@
-"country";"label"
-"Albania";0
-"Armenia";1
-"Australia";2
-"Austria";3
-"Azerbaijan";4
-"Belarus";5
-"Belgium";6
-"Bosnia and Herzegovina";7
-"Bulgaria";8
-"Croatia";9
-"Cyprus";10
-"Czechia";11
-"Denmark";12
-"Estonia";13
-"Finland";14
-"France";15
-"Georgia";16
-"Germany";17
-"Greece";18
-"Hungary";19
-"Iceland";20
-"Ireland";21
-"Israel";22
-"Italy";23
-"Latvia";24
-"Lithuania";25
-"Luxembourg";26
-"Malta";27
-"Moldova";28
-"Monaco";29
-"Montenegro";30
-"Morocco";31
-"Netherlands";32
-"North Macedonia";33
-"Norway";34
-"Poland";35
-"Portugal";36
-"Romania";37
-"Russia";38
-"San Marino";39
-"Serbia";40
-"Slovakia";41
-"Slovenia";42
-"Spain";43
-"Sweden";44
-"Switzerland";45
-"Turkey";46
-"Ukraine";47
-"United Kingdom";48
+"country";"code";"label";"region";"region_eurovoc";"region_factbook";"region_florida"
+"Albania";"ALB";0;"SE";"CE";"SE";"S"
+"Armenia";"ARM";1;"O";"CE";"SW_Asia";"W_Asia"
+"Australia";"AUS";2;"W";"";"Oceania";"AustraliaNewZealand"
+"Austria";"AUT";3;"C";"W";"C";"W"
+"Azerbaijan";"AZE";4;"O";"CE";"SW_Asia";"W_Asia"
+"Belarus";"BLR";5;"E";"CE";"E";"E"
+"Belgium";"BEL";6;"W";"W";"W";"W"
+"Bosnia and Herzegovina";"BIH";7;"SE";"CE";"SE";"S"
+"Bulgaria";"BGR";8;"SE";"CE";"SE";"E"
+"Croatia";"HRV";9;"SE";"CE";"SE";"S"
+"Cyprus";"CYP";10;"S";"S";"MiddleEast";"W_Asia"
+"Czechia";"CZE";11;"C";"CE";"C";"E"
+"Denmark";"DNK";12;"N";"N";"N";"N"
+"Estonia";"EST";13;"E";"CE N";"E";"N"
+"Finland";"FIN";14;"N";"N";"N";"N"
+"France";"FRA";15;"W";"W";"W";"W"
+"Georgia";"GEO";16;"O";"CE";"SW_Asia";"W_Asia"
+"Germany";"DEU";17;"C";"W";"C";"W"
+"Greece";"GRC";18;"S";"S";"S";"S"
+"Hungary";"HUN";19;"C";"CE";"C";"E"
+"Iceland";"ISL";20;"N";"N";"N";"N"
+"Ireland";"IRL";21;"W";"W";"W";"N"
+"Israel";"ISR";22;"O";"";"MiddleEast";"W_Asia"
+"Italy";"ITA";23;"S";"S";"S";"S"
+"Latvia";"LVA";24;"E";"CE N";"E";"N"
+"Lithuania";"LTU";25;"E";"CE N";"E";"N"
+"Luxembourg";"LUX";26;"W";"W";"W";"W"
+"Malta";"MLT";27;"S";"S";"S";"S"
+"Moldova";"MDA";28;"E";"CE";"E";"E"
+"Monaco";"MCO";29;"W";"W";"W";"W"
+"Montenegro";"MNE";30;"SE";"CE";"SE";"S"
+"Morocco";"MAR";31;"O";"";"N_Africa";"N_Africa"
+"Netherlands";"NLD";32;"W";"W";"W";"W"
+"North Macedonia";"MKD";33;"SE";"CE";"SE";"S"
+"Norway";"NOR";34;"N";"N";"N";"N"
+"Poland";"POL";35;"C";"CE";"C";"E"
+"Portugal";"PRT";36;"S";"S";"SW";"S"
+"Romania";"ROU";37;"SE";"CE";"SE";"E"
+"Russia";"RUS";38;"E";"CE";"N_Asia";"E"
+"San Marino";"SMR";39;"S";"S";"S";"S"
+"Serbia";"SRB";40;"SE";"CE";"SE";"S"
+"Slovakia";"SVK";41;"C";"CE";"C";"E"
+"Slovenia";"SVN";42;"SE";"CE";"C";"S"
+"Spain";"ESP";43;"S";"S";"SW";"S"
+"Sweden";"SWE";44;"N";"N";"N";"N"
+"Switzerland";"CHE";45;"W";"W";"C";"W"
+"Turkey";"TUR";46;"O";"";"SE SW_Asia";"W_Asia"
+"Ukraine";"UKR";47;"E";"CE";"E";"E"
+"United Kingdom";"GBR";48;"W";"W";"W";"N"
