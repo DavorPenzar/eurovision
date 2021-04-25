@@ -7,7 +7,7 @@ This script is a part of Davor Penzar's *[ESC](http://eurovision.tv/) Score
 Predictor* project.
 
 Author: [Davor Penzar `<davor.penzar@gmail.com>`](mailto:davor.penzar@gmail.com)
-Date: 2021-04-15
+Date: 2021-04-25
 Version: 1.0
 
 """
@@ -96,9 +96,9 @@ def rank_list (score, ascending = False, mode = 'count', normalise = False):
         rank is set to `i + m`.
 
     normalise : boolean, optional
-        If true, ranks are normalised to set the lowest score to 1.  However,
-        if only a single score is observed or if all scores are equal, no
-        normalisation is done (all scores receive rank 0 instead).
+        If true, ranks are normalised to set the worst score to 1.  However, if
+        only a single score is observed or if all ranks are 0, no normalisation
+        is done (all scores receive rank 0 instead).
 
     Returns
     -------
@@ -146,7 +146,10 @@ def rank_list (score, ascending = False, mode = 'count', normalise = False):
             if mode == 2:
                 R = (
                     r +
-                    (((len(e) - 1) >> 1) if (len(e) & 1) else float(0.5 * (len(e) - 1)))
+                    (
+                        ((len(e) - 1) >> 1)
+                            if (len(e) & 1) else float(0.5 * (len(e) - 1))
+                    )
                 )
                 floating = floating or isinstance(R, _numbers.Integral)
                 for j in e:
@@ -157,12 +160,23 @@ def rank_list (score, ascending = False, mode = 'count', normalise = False):
             e = set()
         rank[i] = r
         e.add(i)
+    if mode == 2:
+        R = (
+            r +
+            (
+                ((len(e) - 1) >> 1)
+                    if (len(e) & 1) else float(0.5 * (len(e) - 1))
+            )
+        )
+        floating = floating or isinstance(R, _numbers.Integral)
+        for j in e:
+            rank[j] = R
 
     rank = _np.array(rank, dtype = _np.float64 if floating else _np.int64)
     if (
         normalise and
-        rank.size > 1 and
-        _np.amax(rank) > 1 and
+        rank.size and
+        _np.amax(rank) != 1 and
         not _np.all(_np.isclose(1.0, 1.0 + _np.diff(_np.sort(rank))))
     ):
         rank = _np.true_divide(rank, _np.amax(rank))
@@ -218,7 +232,7 @@ def rank_list_diff (score, ascending = False, normalise = False):
     rank = score - _np.amin(score) if ascending else _np.amax(score) - score
     if (
         normalise and
-        rank.size > 1 and
+        rank.size and
         _np.amax(rank) != 1 and
         not _np.all(_np.isclose(1.0, 1.0 + _np.diff(_np.sort(rank))))
     ):
