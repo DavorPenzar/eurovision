@@ -6,20 +6,21 @@ Creation of a machine-learning model for predicting scores in the [*Eurovision S
 
 Function [`utils.compute_params`](utils.py#L218) was not actually used in the production.  Instead, the parameter dictionary was created manually by setting
 
-```Python
 params = {
-    'sr': 24576,
-    'hop_length': 960,
-    'chroma_cqt_hop_length': 3840,
-    'tempogram_hop_length': 960,
-    'n_fft': 3840,
-    'fmin': 0.0,
-    'fmax': 11839.82152677230076587824670536366572,
-    'chroma_cqt_fmin': 32.70319566257482933473124919041309,
-    'frame_length': 1920, # instead of 3840 (half of it)
-    'kernel_size': 59,
-    'win_length': 256,
-    'width': 15
+	'sr': 24576,
+	'hop_length': 960,
+	'chroma_cqt_hop_length': 3840,
+	'tempogram_hop_length': 960,
+	'n_fft': 3840,
+	'fmin': 0.0,
+	'fmax': 11839.82152677230076587824670536366572,
+	'chroma_cqt_fmin': 32.70319566257482933473124919041309,
+	'frame_length': 1920,
+	'kernel_size': 59,
+	'win_length': 384,
+	'width': 15,
+	'dtype': np.float64,
+	'stft_dtype': np.complex128
 }
 
 ```
