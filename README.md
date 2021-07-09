@@ -7,6 +7,7 @@ Creation of a machine-learning model for predicting scores in the [*Eurovision S
 Function [`utils.compute_params`](utils.py#L218) was not actually used in the production.  Instead, the parameter dictionary was created manually by setting
 
 ```python
+import numpy as np
 
 params = {
 	'sr': 24576,
