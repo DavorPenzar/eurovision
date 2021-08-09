@@ -591,8 +591,8 @@ def process_song (
             _lr.feature.melspectrogram(
                 y = None,
                 sr = kwargs.get('sr', 22050),
-                S = (
-                    _np.abs(S) **
+                S = _np.power(
+                    _np.absolute(S),
                     kwargs.get('mfcc_power', kwargs.get('power', 2.0))
                 ),
                 n_fft = kwargs.get(
@@ -1029,11 +1029,114 @@ def as_audio (y):
 
     """
 
-    return _np.around(0o77777 * _np.asarray(y)).astype(_np.int16)
-        # _np.around(32767 * _np.asarray(y)).astype(_np.int16)
+    # Prepare parameter.
+
+    y = _np.asarray(y)
+
+    neg = (y < 0)
+    pos = ~neg
+
+    # Construct the audio array.
+
+    audio = _np.zeros_like(y, dtype = _np.int16)
+    audio[neg] = _np.around(
+        _np.clip(y[neg] * 0o100000, -0o100000, 0)
+            # _np.clip(y[neg] * 32768, -32768, 0)
+    ).astype(audio.dtype)
+    audio[pos] = _np.around(
+        _np.clip(y[pos] * 0o77777, 0, 0o77777)
+            # _np.clip(y[pos] * 32767, 0, 32767)
+    ).astype(audio.dtype)
+
+    # Return the constructed audio array.
+    return audio
 
 
 ##  TENSOR VARIANCE
+
+def _abs_square (a):
+    """
+    Calculate the squared absolute value element-wise.
+
+    Parameters
+    ----------
+    a : numpy.ndarray
+        Input array.
+
+    Returns
+    -------
+    numpy.ndarray
+        An array containing the squared absolute value of each element in `a`.
+
+    Notes
+    -----
+    If `a` is a real-valued array, `numpy.square` function yields better
+    performance.  However, if `a` is complex-valued, then this function is
+    faster than
+        >>> numpy.square(numpy.absolute(a))
+    but more memory is used.
+
+    The function is not intended to be used outside of the library.  The
+    function is, in fact, merely an auxiliary internal function.
+
+    See Also
+    --------
+    numpy.absolute
+    numpy.square
+    _get_square_fun
+
+    """
+
+    # Prepare parameter.
+
+    a = _np.asarray(a)
+
+    # Compute and return the squared absolute values.
+
+    return _np.square(a.real) + _np.square(a.imag)
+
+def _get_square_fun (a):
+    """
+    Choose the optimal function for calculating the squared absolute value element-wise.
+
+    Parameters
+    ----------
+    a : numpy.ndarray
+        Input array.
+
+    Returns
+    -------
+    callable
+        If `a` is real-valued, `numpy.square` is returned; otherwise
+        `_abs_square` is returned.
+
+    Notes
+    -----
+    The function merely returns the appropriate function for the input array
+    `a`, but does not call it.  To get the actual result, use
+        >>> square = _get_square_fun(a)
+        >>> square(a)
+    or, in a single line,
+        >>> _get_square_fun(a)(a)
+
+    The function is not intended to be used outside of the library.  The
+    function is, in fact, merely an auxiliary internal function.
+
+    See Also
+    --------
+    numpy.square
+    _abs_square
+
+    """
+
+    # Prepare parameter.
+
+    a = _np.asarray(a)
+
+    # Choose and return the optimal squaring function.
+
+    return \
+        _np.square if issubclass(a.dtype.type, _numbers.Real) else _abs_square
 
 def tensor_var (Y, axis = -1):
     r"""
@@ -1076,7 +1179,7 @@ def tensor_var (Y, axis = -1):
         can be considered as the total variance of the sample, multiplied by
         `n` minus the degrees of freedom.
 
-    See also
+    See Also
     --------
     tensor_var_vec
     tensor_var_svd
@@ -1087,9 +1190,11 @@ def tensor_var (Y, axis = -1):
 
     Y = _np.asarray(Y)
 
+    square = _get_square_fun(Y)
+
     # Compute and return the variance.
 
-    return _np.sum(_np.square(Y - _np.mean(Y, axis = axis, keepdims = True)))
+    return _np.sum(square(Y - _np.mean(Y, axis = axis, keepdims = True)))
 
 def tensor_var_vec (Y, axis = -1, **kwargs):
     r"""
@@ -1140,7 +1245,7 @@ def tensor_var_vec (Y, axis = -1, **kwargs):
         _tl.unfold(Y, mode = axis),
         rowvar = False,
         **kwargs
-    )
+    ).real
 
 def tensor_var_svd (Y, axis = -1, return_d = False, tucker_kwargs = dict()):
     r"""
@@ -1211,6 +1316,8 @@ def tensor_var_svd (Y, axis = -1, return_d = False, tucker_kwargs = dict()):
 
     Y = _np.asarray(Y)
 
+    square = _get_square_fun(Y)
+
     # Compute the decomposition of `Y` - `mean(Y)`.
     S, U = _tld.tucker(
         Y - _np.mean(Y, axis = axis, keepdims = True),
@@ -1218,9 +1325,7 @@ def tensor_var_svd (Y, axis = -1, return_d = False, tucker_kwargs = dict()):
     )
 
     # Compute variances (squares of `axis`-mode singular values).
-    sv2 = _np.array(
-        list(_np.sum(_np.square(s)) for s in _np.moveaxis(S, axis, 0))
-    )
+    sv2 = _np.array(list(_np.sum(square(s)) for s in _np.moveaxis(S, axis, 0)))
 
     # Return computed arrays.
 
@@ -1283,7 +1388,7 @@ def tensor_cov (Xs, axis = -1):
         `axis` or the number of provided axes in `axis` does not match the
         number of tensors in `Xs`.
 
-    See also
+    See Also
     --------
     tensor_var
 
@@ -1326,7 +1431,7 @@ def tensor_cov (Xs, axis = -1):
 
 ##  TENSOR SAMPLES
 
-def _truncate_indices (a, ind, axis = -1):
+def _truncate_indices (a, ind):
     """
     Truncate non-negative 1-dimensional indices to fit indexing of an array.
 
@@ -1357,7 +1462,9 @@ def _truncate_indices (a, ind, axis = -1):
 
     """
 
-    return _np.clip(_np.asarray(ind).ravel(), 0, _np.asarray(a).shape[0] - 1)
+    return _np.clip(
+        _np.asarray(ind).ravel(), 0, max(_np.asarray(a).shape[0] - 1, 0)
+    )
 
 def _round_indices (ind):
     """
@@ -1660,7 +1767,7 @@ def diverse_sample (
 
         *Returned only if `return_nit` is true.*
 
-    See also
+    See Also
     --------
     numpy.random.Random
     tensor_var
@@ -1822,7 +1929,7 @@ def diverse_sample_optd (
     mutually different and the user is advised to check the returned values
     themselves.
 
-    See also
+    See Also
     --------
     scipy.optimize.NonlinearConstraint
     scipy.optimize.minimize
@@ -1845,7 +1952,7 @@ def diverse_sample_optd (
     # Find the most diverse subsample.
     res = _spo.minimize(
         lambda ind: -tensor_var(
-            Y[_round_indices(_truncate_indices(ind, Y))],
+            Y[_round_indices(_truncate_indices(Y, ind))],
             axis = 0
         ),
         random_state.choice(Y.shape[0], size, replace = False),
@@ -1968,7 +2075,7 @@ def diverse_sample_optc (
     mutually different and the user is advised to check the returned values
     themselves.
 
-    See also
+    See Also
     --------
     scipy.optimize.NonlinearConstraint
     scipy.optimize.minimize
