@@ -15,6 +15,8 @@ params = {
 	'chroma_cqt_hop_length': 3840,
 	'tempogram_hop_length': 960,
 	'n_fft': 3840,
+	'n_mels': 128,
+	'n_mfcc': 16,
 	'fmin': 0.0,
 	'fmax': 11839.82152677230076587824670536366572,
 	'chroma_cqt_fmin': 32.70319566257482933473124919041309,
