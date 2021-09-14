@@ -116,6 +116,10 @@ def rank_list (score, ascending = False, mode = 'count', normalise = False):
     ValueError
         If `mode` is an unrecognised value.
 
+    See Also
+    --------
+    rank_list_diff
+
     """
 
     # Prepare parameters.
@@ -220,6 +224,10 @@ def rank_list_diff (score, ascending = False, normalise = False):
     rank : (n,) numpy.ndarray
         Differential ranks of the scores in `score`.  The value `rank[j]`
         represents the differential rank of `score[j]`.
+
+    See Also
+    --------
+    rank_list
 
     """
 
