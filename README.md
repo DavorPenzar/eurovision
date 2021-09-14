@@ -8,7 +8,7 @@ The elaborate of the project is available at [`Elaborate.pdf`](Elaborate.pdf). I
 
 ##  Used Values
 
-Ideally, the following values would be used when calling [*libROSA*'s](http://librosa.org/) functions for music preprocessing.
+Ideally, the following values would be used when calling [*libROSA*'s](http://librosa.org/) functions for music preprocessing:
 
 ```python
 import numpy as np
