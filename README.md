@@ -2,9 +2,13 @@
 
 Creation of a machine-learning model for predicting scores in the [*Eurovision Song Contest*](http://eurovision.tv/).
 
+##  Elaborate
+
+The elaborate of the project is available at [`Elaborate.pdf`](Elaborate.pdf). It is **not** yet **finished**.
+
 ##  Used Values
 
-Function [`utils.compute_params`](utils.py#L246) was not actually used in the production.  Instead, the parameter dictionary was created manually by setting
+Ideally, the following values would be used when calling [*libROSA*'s](http://librosa.org/) functions for music preprocessing.
 
 ```python
 import numpy as np
@@ -30,4 +34,4 @@ params = {
 
 ```
 
-Somewhere, of course, additional parameters were set, but their values would not be set by the function, anyway.
+However, [*musicnn*'s](http://github.com/jordipons/musicnn) and [*libROSA*'s](http://librosa.org/) defaults were used in the end.
