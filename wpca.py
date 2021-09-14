@@ -129,7 +129,8 @@ class WPCA (object):
             for j in range(i, n_features):
                 c = _np.sum(
                     full_weights * (X_dev[:, i] * X_dev[:, j]),
-                    axis = None
+                    axis = None,
+                    dtype = dtype
                 ) / n_free_samples
 
                 cov[i, j] = c
@@ -197,10 +198,7 @@ class WPCA (object):
 
             self._weights = _np.array(
                 weights_arr / WPCA._sum(weights_arr),
-                dtype = self._dtype,
-                order = 'C',
-                copy = True,
-                subok = False
+                dtype = self._dtype
             )
 
             del weights_arr
@@ -251,17 +249,11 @@ class WPCA (object):
             self._n_components = _copy.deepcopy(self._n_features)
 
         if self._weights is None:
-            self._weights = _np.array(
-                _np.full(
-                    X.shape[0],
-                    fill_value = 1.0 / float(self._n_samples),
-                    dtype = self._dtype,
-                    order = 'C'
-                ),
+            self._weights = _np.full(
+                X.shape[0],
+                fill_value = 1.0 / float(self._n_samples),
                 dtype = self._dtype,
-                order = 'C',
-                copy = True,
-                subok = False
+                order = 'C'
             )
 
         assert self._n_components <= self._n_features
@@ -272,16 +264,11 @@ class WPCA (object):
 
         # Compute the mean and the covariance matrix.
 
-        self._mean = _np.array(
-            _np.sum(
-                _np.expand_dims(self._weights, axis = 1) * X,
-                axis = 0,
-                keepdims = True
-            ),
+        self._mean = _np.sum(
+            _np.expand_dims(self._weights, axis = 1) * X,
+            axis = 0,
             dtype = self._dtype,
-            order = 'C',
-            copy = True,
-            subok = False
+            keepdims = True
         )
 
         X_dev = X - self._mean
@@ -295,7 +282,8 @@ class WPCA (object):
             for j in range(i, self._n_features):
                 c = _np.sum(
                     full_weights * (X_dev[:, i] * X_dev[:, j]),
-                    axis = None
+                    axis = None,
+                    dtype = self._dtype
                 ) / n_free_samples
 
                 cov[i, j] = c
@@ -321,24 +309,16 @@ class WPCA (object):
 
         self._explained_variance = _np.array(
             explained_variance[:self._n_components],
-            dtype = self._dtype,
-            order = 'C',
-            copy = True,
-            subok = False
+            dtype = self._dtype
         )
         self._explained_variance_ratio = _np.array(
             explained_variance_ratio[:self._n_components],
-            dtype = self._dtype,
-            order = 'C',
-            copy = True,
-            subok = False
+            dtype = self._dtype
         )
         self._components = _np.array(
             components[:, :self._n_components],
             dtype = self._dtype,
-            order = 'C',
-            copy = True,
-            subok = False
+            order = 'C'
         )
 
         del explained_variance
@@ -399,7 +379,7 @@ class WPCA (object):
         X = _np.asarray(X)
 
         return self.fit(X, y).transform(X)
-    
+
     @property
     def n_features_ (self):
         """Number of original features (components)."""
