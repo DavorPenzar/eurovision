@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Implementation of weighted PCA inspired by [scikit-learn's](http://scikit-learn.org/) [`PCA`](http://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html).
+Implementation of weighted PCA inspired by [*scikit-learn*'s](http://scikit-learn.org/) [`PCA`](http://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html).
 
 This script is a part of Davor Penzar's *[ESC](http://eurovision.tv/) Score
 Predictor* project.
@@ -21,7 +21,7 @@ class WPCA (object):
     """
     Weighted principal component analysis.
 
-    The algorithm is implemented using [NumPy's](http://numpy.org/) methods.
+    The algorithm is implemented using [*NumPy*'s](http://numpy.org/) methods.
 
     Parameters
     ----------
