@@ -9,7 +9,7 @@ The elaborate of the project is available at [`Elaborate.pdf`](Elaborate.pdf). I
 ##  To Do:
 
 1.  Update/add inline documentation for [`wpca.py`](wpca.py) and [`delayed_early_stopping.py`](delayed_early_stopping.py).
-2.  Finish [`Modelling.py`](modelling.py) notebook (for construction of model(s)) and add text to it for easier reading.
+2.  Finish [`Modelling.ipynb`](modelling.ipynb) notebook (for construction of model(s)) and add text to it for easier reading.
 3.  Add parts about weighted PCA of [*musicnn*](http://github.com/jordipons/musicnn) outputs that was used for custom model inputs to [`Elaborate.pdf`](Elaborate.pdf).
 4.  After constructing the model(s), explain it/them in details, and display and comment the results in [`Elaborate.pdf`](Elaborate.pdf).
 5.  Remove unnecessary parts from [`Elaborate.pdf`](Elaborate.pdf) and overall finish the elaborate.
