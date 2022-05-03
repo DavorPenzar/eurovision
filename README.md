@@ -4,6 +4,8 @@ Creation of a machine-learning model for predicting scores in the [*Eurovision S
 
 Unfortunately, no useful model was successfully developed. However, the idea and techniques conducted through the project are extensively reported in the [`Elaborate.pdf`](Elaborate.pdf).
 
+An example of the model construction is displayed in [`Modeling.ipynb`](Modeling.ipynb), but, without the dataset, it cannot be reproduced.
+
 ##  Used Values
 
 Ideally, the following values would be used when calling [*libROSA*'s](http://librosa.org/) functions for music preprocessing:
