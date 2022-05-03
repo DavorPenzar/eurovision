@@ -1,0 +1,31 @@
+\begin{tikzpicture}
+
+	\begin{axis}[
+		set layers = axis lines on top,
+		xlabel = {Time ($ \si{\second} $)},
+		xmin = 0,
+		xmax = 10,
+		ylabel = {Pitch class},
+		ymin = 0,
+		ymax = 12,
+		ytick style = {draw = none},
+		ytick = {0.5, 2.5, 4.5, 5.5, 7.5, 9.5, 11.5},
+		yticklabels = {C, D, E, F, G, A, H},
+		colorbar horizontal,
+		colorbar style = {xlabel = {Intensity ($ \unit{\%} $)}},
+		colormap = {customcm}{
+			color = (FireBrick),
+			color = (DarkOrange),
+			color = (Gold),
+			color = (YellowGreen),
+			color = (SeaGreen)
+		},
+		point meta min = 0,
+		point meta max = 100
+	]
+
+		\addplot graphics[includegraphics cmd = \pgfimage, xmin = 0, xmax = 10, ymin = 0, ymax = 12] {chromagram.png};
+
+	\end{axis}
+
+\end{tikzpicture}

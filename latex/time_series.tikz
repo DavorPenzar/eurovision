@@ -1,0 +1,17 @@
+\begin{tikzpicture}
+
+	\begin{axis}[
+		set layers = axis lines on top,
+		xlabel = {Time ($ \si{\second} $)},
+		xmin = 0,
+		xmax = 10,
+		ylabel = {Signal},
+		ymin = -1,
+		ymax = 1
+	]
+
+		\addplot graphics[includegraphics cmd = \pgfimage, xmin = 0, xmax = 9.9990234375, ymin = -0.9182237642932523, ymax = 0.9108206162723762] {time_series.png};
+
+	\end{axis}
+
+\end{tikzpicture}

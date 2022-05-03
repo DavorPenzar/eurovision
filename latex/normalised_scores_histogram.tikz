@@ -1,0 +1,27 @@
+\begin{tikzpicture}
+
+	\begin{axis}[
+		set layers = axis lines on top,
+		xlabel = {Normalised Score},
+		xmin = -0.5,
+		xmax = 6,
+		ylabel = {Density ($ \unit{\%} $)},
+		ymin = 0,
+		ymax = 70
+	]
+
+		\path[draw = RoyalBlue, draw opacity = 1, fill = RoyalBlue, fill opacity = 0.25] (0, 0) rectangle (0.5, 63.914373088685);
+		\path[draw = RoyalBlue, draw opacity = 1, fill = RoyalBlue, fill opacity = 0.25] (0.5, 0) rectangle (1, 53.6697247706422);
+		\path[draw = RoyalBlue, draw opacity = 1, fill = RoyalBlue, fill opacity = 0.25] (1, 0) rectangle (1.5, 35.1681957186544);
+		\path[draw = RoyalBlue, draw opacity = 1, fill = RoyalBlue, fill opacity = 0.25] (1.5, 0) rectangle (2, 22.782874617737);
+		\path[draw = RoyalBlue, draw opacity = 1, fill = RoyalBlue, fill opacity = 0.25] (2, 0) rectangle (2.5, 12.0795107033639);
+		\path[draw = RoyalBlue, draw opacity = 1, fill = RoyalBlue, fill opacity = 0.25] (2.5, 0) rectangle (3, 7.95107033639144);
+		\path[draw = RoyalBlue, draw opacity = 1, fill = RoyalBlue, fill opacity = 0.25] (3, 0) rectangle (3.5, 2.59938837920489);
+		\path[draw = RoyalBlue, draw opacity = 1, fill = RoyalBlue, fill opacity = 0.25] (3.5, 0) rectangle (4, 1.07033639143731);
+		\path[draw = RoyalBlue, draw opacity = 1, fill = RoyalBlue, fill opacity = 0.25] (4, 0) rectangle (4.5, 0.458715596330275);
+		\path[draw = RoyalBlue, draw opacity = 1, fill = RoyalBlue, fill opacity = 0.25] (4.5, 0) rectangle (5, 0.152905198776758);
+		\path[draw = RoyalBlue, draw opacity = 1, fill = RoyalBlue, fill opacity = 0.25] (5, 0) rectangle (5.5, 0.152905198776758);
+
+	\end{axis}
+
+\end{tikzpicture}

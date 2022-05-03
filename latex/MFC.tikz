@@ -1,0 +1,29 @@
+\begin{tikzpicture}
+
+	\begin{axis}[
+		set layers = axis lines on top,
+		xlabel = {Time ($ \si{\second} $)},
+		xmin = 0,
+		xmax = 10,
+		ylabel = {Mel-frequency cepstrum},
+		ymin = 0,
+		ymax = 1,
+		ytick style = {draw = none},
+		ytick = \empty,
+		yticklabels = \empty,
+		colorbar horizontal,
+		colorbar style = {xlabel = {Coefficients}},
+		colormap = {customcm}{
+			color = (MediumVioletRed),
+			color = (White),
+			color = (DarkCyan)
+		},
+		point meta min = -140,
+		point meta max = 140
+	]
+
+		\addplot graphics[includegraphics cmd = \pgfimage, xmin = 0, xmax = 10, ymin = 0, ymax = 1] {MFC.png};
+
+	\end{axis}
+
+\end{tikzpicture}

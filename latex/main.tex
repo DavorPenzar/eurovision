@@ -1,0 +1,785 @@
+\documentclass[conference, a4paper, 12pt]{IEEEtran}
+
+\IEEEoverridecommandlockouts
+
+\pdfinterwordspaceon
+\input{glyphtounicode}
+\pdfgentounicode=1
+
+\usepackage[T2A, T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[final]{microtype}
+\usepackage[croatian, french, german, italian, ukrainian, main = british]{babel}
+
+\usepackage[usenames, dvipsnames, svgnames, x11names, table]{xcolor}
+
+\usepackage{amsbsy}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amstext}
+\usepackage{amsthm}
+\usepackage{listings}
+\usepackage{mathtools}
+\usepackage[nosepfour]{numprint}
+    \npthousandsep{\,}
+    \npdecimalsign{\symbol{"002C}}
+    \npproductsign{\ensuremath{\cdot}}
+    \npunitseparator{\,}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+    \pgfplotsset{%
+        compat = newest,
+        layers/axis lines on top/.define layer set = {%
+            axis background,
+            axis grid,
+            pre main,
+            main,
+            axis ticks,
+            axis tick labels,
+            axis lines,
+            axis descriptions,
+            axis foreground,
+        }{/pgfplots/layers/standard}
+    }
+    \usepgfplotslibrary{colormaps}
+    \pgfkeys{/pgf/number format/.cd, use comma, 1000 sep={\,}}
+\usepackage[locale = UK, binary-units = true, group-separator = {\,}, group-four-digits = false, output-decimal-marker = \symbol{"002C}]{siunitx}
+\usepackage{stackrel}
+\usepackage{thmtools}
+\usepackage{tikz}
+\usepackage{units}
+
+\usepackage[xindy]{imakeidx}
+\usepackage[backend = biber, indexing = true, style = numeric, bibstyle = ieee, citestyle = numeric-comp, sorting = nyvt, sortcites = true, giveninits = true, minnames = 1, maxnames = 6, alldates = short, date = year, isbn = false, doi = false, url = true, eprint = true, arxiv = abs]{biblatex}
+    \defbibheading{bibliography}[\bibname]{
+        \section*{#1}
+        \addcontentsline{toc}{section}{#1}
+    }
+\usepackage{xpatch}
+
+\usepackage{algorithmic}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{csquotes}
+    \MakeOuterQuote{"}
+\usepackage[british, calc]{datetime2}
+    \DTMusemodule{british}{en-GB}
+    \DTMlangsetup[en-GB]{ord = raise, monthyearsep = {,\space}}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{multicol}
+\usepackage{multirow}
+%\usepackage{musixtex}
+\usepackage{subcaption}
+\usepackage{tabularx}
+\usepackage{tabu}
+\usepackage{textcomp}
+
+\usepackage{varioref}
+\usepackage{url}
+\usepackage[unicode = true]{hyperref}
+    \hypersetup{
+        pdfstartview = ,
+        pdftitle = {Machine Learning Methods for the Prediction of Scores in the Eurovision Song Contest},
+        pdfauthor = {Davor Penzar},
+        pdfsubject = {Creation of machine learning models for score prediction in the Eurovision Song Contest},
+        pdfkeywords = {music information retrieval, computer audition, deep learning, machine learning, convolutional neural networks, Eurovision Song Contest, score prediction, regression}
+    }
+\usepackage{bookmark}
+\usepackage[noabbrev]{cleveref}
+
+\makeindex
+\addbibresource{bibliography.bib}
+
+\newcommand*{\positives}[1]{{#1}_{{+}}}
+
+\newcommand*{\naturals}{\mathbb{N}}
+\newcommand*{\reals}{\mathbb{R}}
+
+\newcommand*{\intervalcc}[2]{\left[ {#1} , {#2} \right]}
+\newcommand*{\intervalco}[2]{\left[ {#1} , {#2} \right)}
+
+\newcommand*{\bigO}{\mathcal{O}}
+
+\newcommand*{\dotprod}[2]{\left\langle {#1} , {#2} \right\rangle}
+
+\newcommand*{\tran}{\mkern-1.5mu \mathsf{T}}
+\DeclareMathOperator{\tr}{\mathrm{tr}}
+
+\DeclareMathOperator{\expect}{\mathbb{E}}
+\newcommand*{\mean}[1]{\bar{#1}}
+\newcommand*{\Mean}[1]{\overline{#1}}
+\DeclareMathOperator{\Var}{\mathit{Var}}
+\DeclareMathOperator{\sd}{\mathrm{sd}}
+\DeclareMathOperator{\Cov}{\mathit{Cov}}
+\DeclareMathOperator{\cov}{\mathit{cov}}
+
+\DeclareMathOperator{\interrel}{\mathit{IR}}
+
+\newcommand*{\myurl}[1]{\href{#1}{\texttt{#1}}}
+
+\lstdefinestyle{myprogram}{
+    breaklines = true,
+    breakatwhitespace = true,
+    numbers = left,
+    stepnumber = 1,
+    numberstyle = {\footnotesize \ttfamily \bfseries},
+    tabsize = 4,
+    frame = none,
+    basicstyle = {\ttfamily},
+    stringstyle = {\color{red}},
+    keywordstyle = {\bfseries \color{blue}},
+    commentstyle = {\itshape \color{gray}},
+    showstringspaces = true
+}
+
+\title{
+    Machine Learning Methods for the Prediction of Scores in the \href{http://eurovision.tv/}{\emph{Eurovision Song Contest}}
+    %\thanks{Personally funded.}
+}
+\author{
+    \IEEEauthorblockN{Davor Penzar}
+    \IEEEauthorblockA{
+        \textit{freelancing data science and machine learning enthusiast} \\
+        Zagreb, Croatia \\
+        \href{mailto:davor.penzar@gmail.com}{davor.penzar@gmail.com}
+    }
+}
+\date{May \ensuremath{2022}, Zagreb, Croatia}
+
+\begin{document}
+    \maketitle
+
+    \begin{abstract}
+        This paper proposes a few machine learning methods and possible models for score prediction in the \href{http://eurovision.tv/}{\emph{Eurovision Song Contest}}. The idea is to train a model for predicting mainstream taste in music, which could be useful in music industry if done successfully. To achieve that, the sound is processed using deep convolutional networks, some of which take in extra non-auditory song features.%
+        %After the analysis of the results, the models are employed to predict the score of the Croatian candidates for the \ensuremath{2020} edition of the \href{http://eurovision.tv/}{Contest} had it been held.
+    \end{abstract}
+
+    \begin{IEEEkeywords}
+       music information retrieval, computer audition, deep learning, machine learning, convolutional neural networks, \href{http://eurovision.tv/}{\emph{Eurovision Song Contest}}, score prediction, regression
+    \end{IEEEkeywords}
+
+    \section{Introduction}
+    \label{sec:introduction}
+
+    There is no doubt the majority of a \emph{logically} grouped---such as dividing by age, mother tongue, level of education etc.---part of the population share some commonalities in their taste in various forms of art. Naturally, such is the case in music. To illustrate this, in a world where each individual would have their own taste in music completely independent of the others', the popularity of songs would be distributed relatively uniformly. This is obviously not the case: for example, one may observe scores and reviews of songs at~\cite{bib:AM}, \emph{WoC} of top charts at~\cite{bib:UKTop100} or views of trending music videos at~\cite{bib:YTTrend}---simultaneously noticeable, on the other hand, is the great domination of just a few music genres\footnote{Similar statistics could be found for books at~\cite{bib:GR}, for movies and TV shows at~\cite{bib:IMDb,bib:RT}\ldots}. Obviously, the sources mentioned are updated frequently, but it is no surprise that the findings are always the same. In fact, even more stable statistics, such as those at~\cite{bib:Cossar2019}, lead to analogous conclusions. After all, music industry would probably not be as profitable as it is (v.\ \cite{bib:Statista2021}) if the \emph{common taste} did not exist.
+
+    \par
+
+    The phenomenon is not a novelty, either. One could read some interesting facts about the $ 19 $\textsuperscript{th} century pianist virtuoso and composer \foreignlanguage{german}{Franz Liszt}'s popularity at~\cite{bib:Vincent2019} or enjoy the $ 1984 $ M.\ Forman's and P.\ Shaffer's movie \emph{Amadeus} displaying, although dramatically and comically amended, the glorious life and tragic death of the famous $ 18 $\textsuperscript{th} century composer \foreignlanguage{german}{Wolfgang Amadeus Mozart}. Surely we may rely on the idea that the phenomenon will continue on in the future as well.
+
+    \par
+
+    What makes a song (a musically-lyrical piece) a \emph{hit} could be analysed through music theory, literature, linguistics, sociology and other scientific aspects, but that will not be done in this paper. Rather, the idea of the paper is to train an \emph{alien}, completely oblivious of the aforementioned disciplines and their points of interest in songs and pop culture, to predict how the public would respond to a music piece just by hearing it. Of course, such an ignorant is impossible to find (probably a literal intelligent, sound hearing extraterrestrial alien would be the most applicable candidate), therefore compromises had to be made. Due to the area of knowledge and interest of the author, a machine learning model was chosen as a representation of the \emph{alien} mentioned above.
+
+    \par
+
+    If a model proves itself successful, it might be used in music industry to filter out most promising song writers, authors, performers, records and albums, ultimately to boost a record label's business. Not only could this be done faster than by a human, but the process would also be cheaper. Some may argue against this; nevertheless the paper should primarily be viewed as an intellectual exercise in music information retrieval, computer audition and other close fields. However, the author's personal point of view on the possible repercussions of employment of the models in actual music industry is given in the conclusion, section~\ref{subsec:significance_of_computer_aided_art_form}.
+
+    \par
+
+    \subsection{Related Works}
+    \label{subsec:related_works}
+
+    As stated in a popular science article at~\cite{bib:Fagella2019}, \href{http://spotify.com/}{\emph{Spotify}} predicts music taste by comparing the user's favourite songs with other users' playlists ($ k $ nearest neighbours or a similar, more complex model). Successful or not, the method does not operate on actual auditory features of songs that the final user enjoys or dislikes but it assumes the same \emph{common taste} on which this paper is based. On the other hand, authors in~\cite{bib:Oord2013} correlated audio features to individuals' preferences in songs, which is very close to the idea of this project. Similar research was conducted at~\cite{bib:McFee2012}. Another popular science article at~\cite{bib:Roza2019} states that not only could a machine learn artistic aesthetics\footnote{In the opinion of this paper's author, art is not solely about aesthetics, and sometimes it is not about aesthetics at all---it all depends on the art form, style and the artist's idea.}, but it could also generate art. The article then references an interesting music analysis and composition model proposed in~\cite{bib:Manaris2007}. On the other hand, visual aesthetics prediction seems to have been developed more thoroughly as seen, for example, at~\cite{bib:Lu2014,bib:Malu2017}.
+
+    \par
+
+    However, machine learning has been extensively employed in audio processing and music information retrieval for classification and tagging purposes: e.~g.\ at~\cite{bib:Hoffman2009,bib:Lee2009,bib:Hamel2010,bib:Dielman2011,bib:Pons2018,bib:Pons2019}. Nonetheless, the author of this paper strongly believes that tags and other objective classes observed are related to listeners' taste and preferences. As a result, the models explained in the aforementioned sources were studied for the purpose of this project.
+
+    \par
+
+    Concerning the \href{http://eurovision.tv/}{\emph{Eurovision Song Contest}}, artificial intelligence and machine learning, the connection has already been made. In $ 2019 $ a song has been created by a machine after learning from a number of \href{http://eurovision.tv/}{\emph{Eurovision}} songs, as described at~\cite{bib:Shapira2019,bib:Drake2019,bib:Ackerman2019}. A year later, in $ 2020 $, an artificial intelligence song contest was held, available at~\cite{bib:VPROAI2020,bib:VPROAIWin2020}. The contest was even announced by \href{http://eurovision.tv/}{\emph{Eurovision}} at~\cite{bib:ESCAI2020}.
+
+    \par
+
+    \subsection{The Choice of the \href{http://eurovision.tv/}{\emph{Eurovision Song Contest}}}
+    \label{subsec:the_choice_of_the_eurovision_song_contest}
+
+    The \href{http://eurovision.tv/}{\emph{Eurovision Song Contest} (\emph{ESC})} was chosen as the measurement of the popularity of songs because of its $ 6 $ decades long continuous history (except for the $ 2020 $ edition due to the COVID-$ 19 $ pandemic---v.\ \cite{bib:EVWScores,bib:ESC2020}) and the easily understood scoring system. Unlike measuring popularity of songs by assigning scores to their positions in top charts, numbers of sales and other implicit indicators, the scoring system of the \href{http://eurovision.tv/}{\emph{ESC}} already displays numerically valued popularity of the competing songs expressed through the audience's and the jury's votes. Also, all songs in a single edition of the \href{http://eurovision.tv/}{Contest} had been introduced roughly at the same time and had been available to be listened to approximately the same amount of time, meaning all of them had somewhat equal chance of having their popularity faded out by the time of the \href{http://eurovision.tv/}{Contest}. Finally, local music stars are not necessarily popular abroad, hence songs' scores might be---and, for the purpose of this paper, they hopefully are---independent of artists' popularity.
+
+    \par
+
+    On the other hand, by checking individual scores at~\cite{bib:Okhuijsen2019} (or by watching the \href{http://eurovision.tv/}{\emph{ESC}} over the years) one could notice that some neighbouring or mutually friendly countries usually give each other high points, probably regardless of their actual enjoyment of contestants (songs). Such bias disrupts the idea that the popularity of a song could be predicted merely by analysing how it sounds, indicating that some additional features might have to be introduced. Besides the country of origin of the song, the features may include the language in which the lyrics are, the category of the performer (a solo singer or a band), the performer's sex (or the sex of the lead singer in case of a band) and other easily deducible information. In the end, the author believes that the number of voting countries and the fact that all countries' votes are of equal weights \emph{smooth out} the noise in scores.
+
+    \par
+
+    Of all the songs competing in the \href{http://eurovision.tv/}{\emph{ESC}}, only songs from years $ 1957 $--$ 2019 $ were used because, as mentioned at~\cite{bib:EVWScores}, voting was secret in $ 1956 $ and the scores were not published, plus, in the year $ 2020 $ the \href{http://eurovision.tv/}{Contest} was not held. From the years observed, only the songs and scores from finals (if semifinal round(s) existed) were used because semifinals' and finals' scores are, obviously, not comparable.
+
+    \par
+
+    \section{Dataset}
+    \label{sec:dataset}
+
+    Unfortunately, a complete dataset did not exist beforehand and had to be created manually. The main resources were:
+    \begin{itemize}
+        \item songs from \href{http://youtube.com/}{\emph{YouTube}}, most notably from~\cite{bib:YTESC},
+        \item scores by countries from~\cite{bib:Okhuijsen2019,bib:Flecht2020,bib:EVWScores},
+        \item extra features from~\cite{bib:Flecht2020,bib:EVWScores} and  \href{http://wikipedia.org/}{\emph{Wikipedia}}.
+    \end{itemize}
+    It is obvious that the acquired dataset is not verifiable and it may not be completely correct. Also, due to legal reasons---unauthorised distribution of copyrighted music---the author is not able to share their dataset with others. Even the \emph{transformed} dataset (extracted features used as the input of the models, split into \emph{windows} of a consistent format/shape, along with extra features and scores) would be difficult to share because of its size measuring in tens of gibibytes ($ \si{\gibi \byte} $).
+
+    \par
+
+    \subsection{Regional Division of the Contestant Countries}
+    \label{subsec:regional_division_of_the_contestant_countries}
+
+    \par
+
+    The country of origin as a non-auditory feature of songs seems to be \emph{too granular} and \emph{too sparse} as a country might have competed in the \href{http://eurovision.tv/}{Contest} only once in a decade. As a result, if the country has never appeared in the training dataset of a model depending on the feature, its score cannot be predicted by the model. To avoid such problems, countries may be grouped into regions according to some geographical, political, linguistic and cultural similarities or differences. While partitioning, regions defined by sources at~\cite{bib:EUEV,bib:CIAFB} were studied, but the final regions are not perfectly aligned with either of the two divisions.
+
+    \par
+
+    European countries appearing in the dataset are divided into $ 6 $ regions which, according to geographical locations, may be named as:
+    \begin{itemize}
+        \item Central Europe: Austria, Czechia, Germany, Hungary, Poland, Slovakia,
+        \item Northern Europe: Denmark, Finland, Iceland, Norway, Sweden,
+        \item Western Europe: Belgium, France, Ireland, Luxembourg, Monaco, Netherlands, Switzerland, United Kingdom,
+        \item Southern Europe: Cyprus, Greece, Italy, Malta, Portugal, San Marino, Spain,
+        \item South-Eastern Europe: Albania, Bosnia and Herzegovina, Bulgaria, Croatia, FYR Macedonia, Montenegro, North Macedonia, Romania, Serbia, Serbia and Montenegro, Slovenia, Yugoslavia,
+        \item Eastern Europe: Belarus, Estonia, Latvia, Lithuania, Moldova, Russia, Ukraine.
+    \end{itemize}
+    Additionally, non-European countries (or those not always considered European) are grouped into their own, seventh group: Armenia, Azerbaijan, Georgia, Israel, Morocco, Turkey. Such division is displayed in figure~\ref{fig:regional_division_of_europe} (some European countries not appearing in the dataset are also assigned to a region and coloured for the completeness of the map).
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \includegraphics{regions.pdf}
+        \captionsetup{singlelinecheck = off}
+        \caption[Regional division of Europe]{%
+            Regional division of Europe used in the project:
+            \begin{itemize}
+                \item[\textcolor{DarkSlateGrey}{$ {\blacksquare} $}] Central Europe
+                \item[\textcolor{LightSkyBlue}{$ {\blacksquare} $}] Northern Europe
+                \item[\textcolor{DarkMagenta}{$ {\blacksquare} $}] Western Europe
+                \item[\textcolor{Gold}{$ {\blacksquare} $}] Southern Europe
+                \item[\textcolor{FireBrick}{$ {\blacksquare} $}] South-Eastern Europe
+                \item[\textcolor{MediumSeaGreen}{$ {\blacksquare} $}] Eastern Europe
+                \item[\textcolor{Navy}{$ {\blacksquare} $}] Other
+            \end{itemize}
+            Countries \colorbox{Gainsboro}{coloured lightly grey} are not assigned to any region/group (they are irrelevant for the dataset).}
+        \label{fig:regional_division_of_europe}
+    \end{figure}
+
+    \par
+
+    Although Australia is clearly a geographical outsider, it is assigned to Western Europe region because of the economic, political, cultural and linguistic relations to other countries from the region, as opposed to countries from the \emph{non-European} group of countries. Similarly, Slovenia and Croatia were the most questionable countries amongst the European countries. They may be assigned to Central Europe region because of historic and cultural affiliations to rulers from the Central and the Southern Europe\footnote{Of course, in the most recent period both of the countries were parts of Yugoslavia---the kingdom and the socialist federal republic---but for a great part of the second millennium the border of the Ottoman Empire stayed just south of Croatian territories.}, as well as the predominant Roman Catholic religion, while other countries in the South-Eastern region have stronger eastern and south-eastern influences (e.~g.\ Russia, Ottoman Empire). Impacts on culture and religion are certainly present in folklore and ultimately in popular music, but a stronger coherence in terms of the \href{http://eurovision.tv/}{Contest} appears to be between Croatia, Slovenia and other countries from the chosen region when observing voting results at~\cite{bib:Okhuijsen2019,bib:Flecht2020,bib:EVWScores}. After all, the main purpose of the feature is to overcome possible noise in scores caused by biased votes.
+
+    \par
+
+    \subsection{Sound Preprocessing}
+    \label{subsec:sound_preprocessing}
+
+    The preprocessing of raw input songs was done simultaneously with the construction of the dataset. Naturally, songs were originally saved as audio files on a computer. A series of \href{http://docs.python.org/3/}{\emph{Python}} programs was then run to extract the dataset from the files.
+
+    \par
+
+    Each song passed a few steps first:
+    \begin{enumerate}
+        \item it was loaded as a \href{http://numpy.org/doc/stable/reference/generated/numpy.ndarray.html}{\emph{NumPy} \lstinline[style = myprogram, language = Python]{ndarray}} using \href{http://librosa.org/doc/latest/generated/librosa.load.html}{\emph{libROSA} \lstinline[style = myprogram, language = Python]{load} function} as a mono audio signal in a predefined fixed sample rate,
+        \item zero-crossing rate (ZCR) was computed from the audio signal using \href{http://librosa.org/doc/latest/generated/librosa.feature.zero_crossing_rate.html}{\emph{libROSA} \lstinline[style = myprogram, language = Python]{feature.zero_crossing_rate} function},
+        \item the audio signal (time series) was split into harmonic and percussive components using \href{http://librosa.org/doc/latest/generated/librosa.effects.hpss.html}{\emph{libROSA} \lstinline[style = myprogram, language = Python]{effects.hpss} function},
+        \item constant-Q chromagram was computed from the harmonic component using \href{http://librosa.org/doc/latest/generated/librosa.feature.chroma_cqt.html}{\emph{libROSA} \lstinline[style = myprogram, language = Python]{feature.chroma_ctq} function},
+        \item tempogram was computed from the percussive component using \href{http://librosa.org/doc/latest/generated/librosa.feature.tempogram.html}{\emph{libROSA} \lstinline[style = myprogram, language = Python]{feature.tempogram} function},
+        \item mel-frequency cepstrum (MFC) was computed from the original audio signal using \href{http://librosa.org/doc/latest/generated/librosa.feature.mfcc.html}{\emph{libROSA} \lstinline[style = myprogram, language = Python]{feature.mfcc} function},
+        \item the $ 1 $\textsuperscript{st} and the $ 2 $\textsuperscript{nd} derivative $ \Delta $-features were computed from the MFC using \href{http://librosa.org/doc/latest/generated/librosa.feature.delta.html}{\emph{libROSA} \lstinline[style = myprogram, language = Python]{feature.delta}} function.
+    \end{enumerate}
+    Of all the data mentioned above, only ZCR, chromagram, tempogram, MFC, $ \Delta $-MFC and $ \Delta^{2} $-MFC features were used in the rest of the program. More about the features and their extraction is available at~\cite{bib:McFee2015}.
+
+    \par
+
+    After the features were computed, the first and last $ 10 $ seconds from each song were disregarded (cut out). The reason for this is to avoid using \emph{intros} and \emph{outros} of songs for score prediction since these parts can be very monotone and generic even if middle parts, such as the chorus, are not. Also, a constant signal of magnitude $ 0 $---or even the noise from the live performance (e.~g.\ applause)---might be present at the very beginning or the end of an audio file due to imprecise trimming\footnote{In fact, the author later discovered that some audio files had even longer non-musical beginnings and ends. However, this was taken as an acceptable risk because manual correction of $ 1308 $ audio files was considered too much painstaking work for a single volunteering author, and cutting more than $ \SI{10}{\second} $ seemed as discarding too much valuable information from the properly trimmed samples.}. All possible $ 10 $ second long excerpts (\emph{windows}) of the rest of the song were then extracted\footnote{In reality there are infinitely many $ 10 $ second windows (or, at least, $ 3 \cdot \SI{60}{\second} / t_{\text{P}} \approx \numprint{32.3} \cdot 10^{45} $ windows in a $ 3 $ minute song, where $ t_{\text{P}} $ is the Planck time), but only discrete time points corresponding to the time points of columns of the chromagram, tempogram and MFCC matrices were used.}, and \emph{the most diverse sample} of size $ n $ of them was used. The number $ n \in \naturals $, $ n > 1 $, was fixed and the same for all songs, and \emph{the most diverse sample} was found by conducting the process explained in the appendix, section~\ref{subsec:variance_and_standard_deviation_of_a_multidimensional_sample}, on mel-frequency cepstral coefficient (MFCC) matrices.
+
+    \par
+
+    The choice of the most diverse subsample was made to ensure all different parts of each song were included, and that they were all included in the same extent. Moreover, sampling was done in such a way to maximise diversity (variance) of all observations within a single year of competition. Thus, ideally, each song provided something \emph{new}, something different from other songs to make it easier for the model to distinguish why exactly it should receive the score it received.
+
+    \par
+
+    All hyperparameters (e.~g.\ sample rate, number of MFCCs{\ldots}) were the same for all songs, resulting in a consistent shape of features, regardless of the song from which the windows originated. Furthermore, as the number $ n $ mentioned above was the same for all songs, each song was represented by the same number of observations (windows) no matter what its original duration had been. The final audio dataset was then composed from all the ZCRs, chromagrams, tempograms, MFCs, $ \Delta $-MFCs and $ \Delta^{2} $-MFCs on the chosen windows from all songs. Also, for each window in the final dataset the number $ p \in \intervalcc{0}{1} $, corresponding to the window's middle point's relative position (beginning of the window plus $ 5 $ seconds) in the song, acknowledging the $ 20 $ seconds cut out from the beginning and the end of the song, was saved.
+
+    \par
+
+    \subsection{Splitting the Dataset into Trainig and Validation Datasets}
+    \label{subsec:splitting_the_dataset_into_training_and_validation_datasets}
+
+    As the title of the section suggests, no testing dataset was used---at least no explicit one. This shall be explained later, but a model for predicting scores in the year $ y $ is trained and validated on observations from years preceding the year $ y $, i.~e.\ on years $ y - 1 , y - 2 , \dotsc , y - n , \dotsc $, and then, after being fully constructed (trained), it is tested on all observations in the year $ y $. The training and validation datasets, on the other hand, were constructed for each year independently of other years.
+
+    \par
+
+    To split the dataset in a given year into a training and a validation dataset, the observations from the year were split into parts of sizes roughly $ \unit[75]{\%} : \unit[25]{\%} $ of the original (complete) year's dataset; the training set was then chosen as the larger one. However, to avoid the possibility of a classification model \emph{sneaking into} regression models, this was done by splitting observations (windows of songs) in such a manner that each song is completely in either the training or the validation dataset. Otherwise, if a song's windows were simultaneously in the training and the validation datasets, a model could unintentionally be trained to recognise the song from the features and output its score, without modelling a real and useful regression between the features and the score.
+
+    \par
+
+    In order to optimally split observations in each year, the objective was to keep the diversity of observations in the training and validation datasets from the original (complete) year's dataset. Similarly to the generation of windows, the diversity of MFCs was observed; however, this time the diversity (variance) of scores was observed as well. \emph{To keep} the diversity means to minimise the absolute difference between the subsample's diversity and the original sample's diversity; here there were two differences to minimise (the training and the validation datasets'). The process of finding the optimal split is explained in the appendix, section~\ref{subsec:variance_and_standard_deviation_of_a_multidimensional_sample}.
+
+    \par
+
+    \par
+
+    \section{Exploratory Analysis}
+    \label{sec:exploratory_analysis}
+
+    The exploratory analysis shall only be focused on scores, quantities and auditory features. Non-auditory features are considered as merely auxiliary information, and not something on which one should focus when studying the problem of the paper. The dataset included information from $ 62 $ (finals) editions of the \href{http://eurovision.tv/}{Contest} (years $ 1957 $--$ 2019 $) with $ 52 $ contestants-countries, by differentiating countries such as Yugoslavia from Serbia and Montenegro or F.~Y.~R.~Macednoina from North Macedonia, resulting in total of $ 1308 $ entries. After extracting multiple windows from each competing song, the number of elements in the dataset multiplied.
+
+    \par
+
+    Note that the exploratory analysis was done on the complete dataset, not only on the training part. Normally this would be considered a bad practice, but the author believes it is not the case here. First of all, normalisation of scores, as shown in figures~\labelcref{fig:distribution_of_normalised_scores_over_years,fig:histogram_of_normalised_scores}, is possible without knowing the actual scores since the average score is calculable just by knowing the rules of voting and the number of voting countries. This is comparable to a situation where data is given in various monetary currencies (v.\ subsection~\ref{subsec:scores} to understand why): in order to make the dataset useful, a set of unifying formulas must be available, either explicitly---as a currency conversion table (average scores per year in our case)---or implicitly---as a set of features on which the conversion factors are dependant or to which they are correlated (voting rules and the number of voting countries in our case). Also, if both the training and the validation datasets were constructed as representative samples consistently over the years, all graphs from sections~\labelcref{subsec:scores,subsec:number_of_contestants} would remain visually similar, albeit with values potentially scaled down (e.~g.\ the number of contestants). Second of all, examples of extracted features are shown in figures~\labelcref{fig:audio_time_series_visualisation,fig:ZCR_visualisation,fig:melspectrogram_visualisation,fig:MFC_visualisation,fig:chromagram_visualisation,fig:cylindrical_chromagram_visualisation,fig:tempogram_visualisation} merely to demonstrate how a raw audio is transformed into features for the models' input. It is actually irrelevant if the example is a part of a training set, a validation set, a testing set or unused by models at all---the transformation is possible on any time series (audio or not) of the correct format.
+
+    \par
+
+    \subsection{Scores}
+    \label{subsec:scores}
+
+    Let us observe the distribution of scores over the years. The meaning of line colours in figures~\labelcref{fig:distribution_of_scores_over_years,fig:distribution_of_scores_by_count_over_years,fig:distribution_of_normalised_scores_over_years} (their legend) is the following:
+    \begin{itemize}
+        \item[\textcolor{RoyalBlue}{$ {\blacksquare} $}] the mean and the surrounding symmetric interval of $ 2 $ standard deviations ($ \text{mean} \pm {\sd} $)\footnote{The interval does not have any significant meaning, such as a confidence interval or anything similar. It only shows the magnitude of the standard deviation, implying dispersion of data (scores)---the wider the area, the more dispersed the data is. Note that the width of the area is observed vertically, in the direction of the $ y $-axis, and not perpendicularly to the mean line.},
+        \item[\textcolor{FireBrick}{$ {\blacksquare} $}] the minimum,
+        \item[\textcolor{DarkOrange}{$ {\blacksquare} $}] the lower quartile,
+        \item[\textcolor{Gold}{$ {\blacksquare} $}] the median,
+        \item[\textcolor{YellowGreen}{$ {\blacksquare} $}] the upper quartile,
+        \item[\textcolor{SeaGreen}{$ {\blacksquare} $}] the maximum, i.~e.\ the winners' scores.
+    \end{itemize}
+    All of the figures mentioned above, as well as figure~\ref{fig:number_of_contestants_over_years}, display discrete data (one point per year), but points are connected with straight lines to display progression of values.
+
+    \par
+
+    As one could see in figure~\ref{fig:distribution_of_scores_over_years}, scores were much lower in the beginning of the \href{http://eurovision.tv/}{Contest}. They were even lower in the early $ 2000 $s compared to the scores from the $ 2010 $s.
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \input{scores.tikz}
+        \caption{Distribution of scores over years}
+        \label{fig:distribution_of_scores_over_years}
+    \end{figure}
+
+    \par
+
+    Of course, one of the reasons why the scores increased over the years may be the increase in the number of contestants, as seen in figure~\ref{fig:number_of_contestants_over_years}. Given a fixed set of rules regarding voting and scoring (independent of the number of contestants), one could expect the scores to be proportional to the number of contestants---after all, by accepting the original idea that the preferability of a song may be predicted, this comes as a natural conclusion (a common taste should exist amongst voters). However, as seen in figure~\ref{fig:distribution_of_scores_by_count_over_years}, which displays the progression of ratios of the score and the number of contestants over the years, the shape of curves is very similar to those in figure~\ref{fig:distribution_of_scores_over_years}---even the measures of central tendency (the mean and the median) are inconsistent. In other words, irregularity of scores' meanings is still present.
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \input{scores_by_count.tikz}
+        \caption{Distribution of scores by count over years}
+        \label{fig:distribution_of_scores_by_count_over_years}
+    \end{figure}
+
+    \par
+
+    One could standardise scores by subtracting the mean and dividing by the standard deviation ($ X \mapsto \left( X - \expect \left[ X \right] \right) / \sqrt{\Var \left( X \right)} $), but such values would be \emph{even more meaningless} than the original scores: for instance, ratios amongst scores of contestants in the same year would be lost. Also, by predicting such values one could only determine the final ranking list, but not the actual scores. Alternatively, the normalisation of scores could be done by dividing scores by the mean in their respective years (divide scores in the year $ y $ by the mean of all scores in the year $ y $)\footnote{Since the resulting values are not necessarily limited to the interval $ \intervalcc{0}{1} $, the term \emph{normalisation} may not be entirely correct. However, as the mean is set to a constant value of $ 1 $ by scaling, this term was chosen to describe the transformation at hand.}. As seen in figure~\ref{fig:distribution_of_normalised_scores_over_years}, this produces much more consistent scoring over the years compared to the previous two graphs, by simultaneously keeping ratios amongst scores in the same year. The meaning of normalised scores may also be considered consistent: scoring $ 2 $ normalised points means the same regardless of the year---except in the early $ 1970 $s when scores were much more densely distributed, probably because of rules explained at~\cite{bib:EVWScores}. Also, predicting such values is interpretable: by knowing the rules regarding voting and scoring, as well as the number of voting countries in a given year, one could easily calculate the actual predicted score of a song from the predicted normalised score.
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \input{normalised_scores.tikz}
+        \caption{Distribution of normalised scores over years}
+        \label{fig:distribution_of_normalised_scores_over_years}
+    \end{figure}
+
+    \par
+
+    As seen in figure~\ref{fig:distribution_of_normalised_scores_over_years}, normalised scores seem to be denser in the lower regions, while the maximum is highly dispersed over the years. By interpreting them as continuous values rather than discrete (computer science, information science, politics, geography, history, biology and physics aside, the number of contestants could be arbitrarily large which could result in an arbitrarily fine distribution of normalised scores), their histogram is given in figure~\ref{fig:histogram_of_normalised_scores}. Indeed, the lower the normalised score, the more common it is. The distribution may also suggest that people (voters) from multiple countries share a common taste in music since winners and runner-ups are always voted more or less unanimously.
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \input{normalised_scores_histogram.tikz}
+        \caption[Histogram of normalised scores]{Histogram of normalised scores---all years}
+        \label{fig:histogram_of_normalised_scores}
+    \end{figure}
+
+    \par
+
+    \subsection{Number of Contestants}
+    \label{subsec:number_of_contestants}
+
+    By reading the previous exploratory analysis, it is obvious that the number of contestants has not been constant throughout the years---it ranges from $ 10 $ all the way up to $ 27 $. Its progression is displayed in figure~\ref{fig:number_of_contestants_over_years}. The average (mean) number of contestants is somewhere between $ 20 $ and $ 21 $, but the median is exactly $ 22 $.
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \input{numbers_of_contestants.tikz}
+        \caption[Number of contestants over years]{Number of contestants over years. The \textcolor{RoyalBlue}{blue} line represents the number, while the lightly \colorbox{white!75!RoyalBlue}{shaded blue} area represents its oriented distance from the mean}
+        \label{fig:number_of_contestants_over_years}
+    \end{figure}
+
+    \par
+
+    To demonstrate real-life applicability of the models, their success should be observed more in the later years than in the earlier---as Heraclitus said, \emph{everything moves and nothing stays still}; the same is with music trends. Fortunately, on average there was a greater number of contestants in the more recent years making the dataset \emph{richer} as years increase. For example, starting with the year $ 1987 $, the number of contestants has always been at least $ 21 $, which makes it a continuous period of the most recent $ 32 $ years---more than half of the period covered by the dataset.
+
+    \par
+
+    \subsection{Auditory Features}
+    \label{subsec:auditory_features}
+
+    Finally, auditory features---the key features for the project---are observed. All of them shall be visualised on the same window: a $ 10 $ second window starting at about $ \SI{16.56}{\second} $ into the Ukrainian's winning song of the $ 2004 $ edition of the \href{http://eurovision.tv/}{Contest}, \emph{Wild Dances} (\emph{\foreignlanguage{ukrainian}{Дикі танці}}) by \foreignlanguage{ukrainian}{Ruslana}.
+
+    \par
+
+    Initially, a raw audio signal time series is given. The series is visualised in figure~\ref{fig:audio_time_series_visualisation}. It was chosen not to operate on such raw information since many explicitly calculable features might not be \emph{found} by a machine learning model, although they could be rationally identified with a human's impression of a song.
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \input{time_series.tikz}
+        \caption{Audio time series visualisation}
+        \label{fig:audio_time_series_visualisation}
+    \end{figure}
+
+    \par
+
+    The \emph{simplest} feature observed is the \emph{zero-crossing rate} of a signal, displayed in figure~\ref{fig:ZCR_visualisation}. The feature indicates how many times the signal crosses the value of $ 0 $, or how many times it changes the sign. ZCR might seem to be \emph{primitive} as well (as the original signal), thereby being insufficient for the problem at hand.
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \input{ZCR.tikz}
+        \caption[Zero-crossing rate visualisation]{Zero-crossing rate visualisation. Note that the $ y $-axis stretches only up to $ \unit[25]{\%} $}
+        \label{fig:ZCR_visualisation}
+    \end{figure}
+
+    \par
+
+    The main feature observed is the \emph{mel-frequency cepstrum} (MFC), displayed in figure~\ref{fig:MFC_visualisation}. In short, it represents a power spectrum of a sound, but a more thorough explanation is available at~\cite{bib:McFee2015}. The interpretation of the MFC in the context of this paper is \emph{what a human listener hears}. The MFC is computed from a spectrogram on a non-linear mel scale adjusted for the humans' perception of sound frequencies in melodies\footnote{Even \emph{mel} in terms \emph{mel scale}, \emph{mel-scaled spectrogram} and \emph{mel-frequency cepstrum} derives from the word \emph{melody}.} and can therefore be identified with humans' experience of a musical sound. Although \emph{raw} spectrograms were not used in the project, to further illustrate how an MFC is obtained, the spectrogram of the window is visualised in figure~\ref{fig:melspectrogram_visualisation}. In the figure, the \textcolor{SeaGreen}{greener} the area, the higher the frequency's pressure is at the time point; contrarily, the \textcolor{FireBrick}{redder} the area, the lower the pressure is. Along the ordinary MFC, its $ 1 $\textsuperscript{st} and $ 2 $\textsuperscript{nd} derivatives are observed. This is because a human does not (only) hear sounds at isolated time points when they listen to music, but they also experience the progression of sounds, while more profound listeners---for instance, those musically educated---even ponder upon \emph{progression of progression}, i.~e.\ how the dynamic elements of music change over time.
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \input{melspectrogram.tikz}
+        \caption[Mel-scaled spectrogram visualisation]{Mel-scaled spectrogram visualisation. Sound pressure deviance is measured against the median at the corresponding time point}
+        \label{fig:melspectrogram_visualisation}
+    \end{figure}
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \input{MFC.tikz}
+        \caption[Mel-frequency cepstrum visualisation]{Mel-frequency cepstrum visualisation. No ticks or values are displayed on the $ y $-axis since indices of coefficients, unlike their relative positioning and ordering, are not very informational. For those interested, $ 64 $ coefficients represent each time point}
+        \label{fig:MFC_visualisation}
+    \end{figure}
+
+    \par
+
+    Since it is more of a timbral feature, the MFC (implicitly) includes, along others, both rhythmic and melodic elements of the music. A more suitable representation of only melodic and harmonic elements would be a chromagram, displayed in figure~\ref{fig:chromagram_visualisation}. It shows intensity of each pitch class, regardless of the octave, through the progression of time.
+
+    \par
+
+    Originally, at each time point the maximal intensity is $ 1 $ (columns of the matrix are normalised using the $ {+ \infty} $-norm). The reason for this is that raw melody does not include dynamics (\foreignlanguage{italian}{\emph{piano}}, \foreignlanguage{italian}{\emph{forte}} etc.) and that parallel polyphonic progressions should not cancel each other out, which would happen if the standard Euclidean $ 2 $-norm was used. For instance, if exactly $ 2 $ voices played at the same time equally intense, using the Euclidean norm each of them would have intensity $ \sqrt{2} / 2 $; however, using the $ {+ \infty} $-norm they would both have intensity $ 1 $, as much as each of them would have if they played solo. On the other hand, possible pauses in music could cause problems: normalising a column of zeros would lead to division by $ 0 $ (regardless of the norm used). Therefore, for those time intervals in which the original audio signal's magnitude does not exceed a certain threshold, the chromagram's values are all set to $ 0 $.
+
+    \par
+
+    Besides normalisation, the \emph{resolution} of a chromagram---the number of columns in the matrix per a unit of time---has to be adjusted as well. Chromagrams in this project were constructed so that each $ 10 $ second window was represented by a matrix of $ 64 $ columns (the resolution was $ 6.4 $ columns per second). For a song in an \emph{\foreignlanguage{italian}{allegro}} tempo of $ 128 $ beats per minute ($ \unit{BPM} $) this results in $ 3 $ columns per beat; for a song in a \emph{\foreignlanguage{italian}{prestissimo}} tempo of $ \unit[384]{BPM} $ the resolution is $ 1 $ column per beat. Setting the resolution too low would result in mixing tones from various beats in a single column, even more so given the window may not start at the beginning of a beat. On the other hand, the songs are not played by a single music part of pure tones with perfectly sinusoidal sound waves, but by multiple parts, some of which are vocal, some are instrumental, some may be electronically distroted{\ldots} Setting the resolution too high could then result in columns indicating nonexistent tones by analysing too short periods of time when constructing the columns.
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \input{chromagram.tikz}
+        \caption[Chromagram visualisation]{Chromagram visualisation. Note that the $ 12 $\textsuperscript{th} pitch is called \emph{H} instead of \emph{B}}
+        \label{fig:chromagram_visualisation}
+    \end{figure}
+
+    \par
+
+    Even if the chromagram was constructed optimally in regards to normalisation and resolution, difficulties in music theory are inevitable. First of all, pitches are cyclical (over various octaves). The problem is even visible in figure~\ref{fig:chromagram_visualisation}: at the very beginning (around $ \SI{0}{\second} $) and near the end (around $ \SI{9}{\second} $) there seem to be large skips in melody where most intense pitch classes alternate between \emph{C} and \emph{H}. However, a more probable explanation is that the interval was just a step of a semitone (a minor second). Consequently, by displaying each pitch class only once, regardless of the octave, inverted intervals appear the same (the aforementioned \emph{C}--\emph{H} problem is just an example of the phenomenon). However, to ensure all semitones are equally distant in the chromagram\footnote{Assuming equal temperament tuning system is used, this is preferable. Even if another tuning system is used, semitones do not vary greatly.}, one could \emph{wrap} the chromagram into the third dimension as illustrated in figure~\ref{fig:cylindrical_chromagram_visualisation}. The \emph{wheel} appearing in the figure corresponds to the first column of the chromagram in figure~\ref{fig:chromagram_visualisation}. If all columns are transformed analogously and \emph{stacked} together along the $ z $-axis (perpendicular to the $ x $- and $ y $-axes in figure~\ref{fig:cylindrical_chromagram_visualisation}---the vector product of their unit vectors), the wheel becomes a cylinder---hence the resulting transformation of the chromagram is called a \emph{cylindrical chromagram}. To display such cylinders as tensors (to input them into prediction models), they must be discretised. Not only does this reduce acccuracy, but overhead memory is used. First of all, the matrix displayed in figure~\ref{fig:cylindrical_chromagram_visualisation} is of dimensions $ 32 \times 32 $ with $ 1024 $ entries in total---more than $ 85 $ times more than the $ 12 $ values in the original chromagram column it displays. Second of all, no matter what the dimensions of the matrix are, approximately $ \left( 1 - \pi / 4 \right) N \approx \unit[21]{\%} \; \text{of} \; N $ entries, where $ N \in \positives{\naturals} $ is the total number of entries in the matrix, will remain unused (entries inside the bounding rectangle/square, but outside the relevant ellipse/circle). The excess is then multiplied by the number of time points represented by the chromagram, i.~e.\ the number of columns in the original chromagram.
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \input{cylindrical_chromagram.tikz}
+        \caption[Cylindrical chromagram visualisation]{Cylindrical chromagram visualisation. The location of pitch \emph{C} is marked and the arrow originating from it denotes the ascending direction of the scale. Since the cylindrical chromagram is in fact $ 3 $-dimensional, only a \emph{slice} of it, corresponding to a single time point, is displayed}
+        \label{fig:cylindrical_chromagram_visualisation}
+    \end{figure}
+
+    \par
+
+    Another music theory problem of chromagrams---both \emph{ordinary} and cylindrical---is the choice of songs' tuning. Chromagrams used in the project are calibrated for equal temperament tuning system (more about the tuning systems used in modern and historical European music is available in~\cite{bib:Sikic2013}) with \emph{A} at $ \SI{440}{\hertz} $, although it would probably be correct even if \emph{A} was tuned anywhere between $ \SI{428}{\hertz} $ and $ \SI{452}{\hertz} $. Tuning \emph{A} lower than $ \SI{428}{\hertz} $ or higher than $ \SI{452}{\hertz} $ would result in incorrect pitch classes but relative distances between the classes would remain correct\footnote{In the project's defense, this is no different from people with perfect pitch. Naming tones \emph{C}, \emph{D}, {\ldots}, \emph{H} is purely theoretical and linguistic.}.
+
+    \par
+
+    Lastly, the tempogram is observed, displayed in figure~\ref{fig:tempogram_visualisation}. Similarly to the chromagram, its columns indicate in which tempo the music is (most probably) played at the given time point. Normalisation rules for tempograms are the same as for chromagrams.
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \input{tempogram.tikz}
+        \caption{Tempogram visualisation}
+        \label{fig:tempogram_visualisation}
+    \end{figure}
+
+    \par
+
+    A reasonable assumption is that all songs, or at least the vast majority of songs' windows operated on, should be in a constant tempo. Of course, \foreignlanguage{italian}{\emph{rallentando}}s and \foreignlanguage{italian}{\emph{accelerando}}s, as well as instant tempo changes, have existed in music for a very long time (if not forever), but such peculiarities are not so common in modern popular music\footnote{The author does not have a fixed reliable source for this information, it is merely the author's opinion. However, it may be noted that the author is not a complete layperson in the field of music theory, as they graduated music theory at a music high school acquiring \href{http://europa.eu/europass/en/european-qualifications-framework-eqf}{EQF} level $ 5 $.}, as they seldom appear more than thrice in a song. Having accepted this, the tempogram matrix may be aggregated into a single vector by averaging all of its rows, creating a mean-vector along its second dimension (time). Again, this vector is normalised using the $ {+ \infty} $-norm. Furthermore, as seen in figure~\ref{fig:tempogram_visualisation}, more than one tempo is of a high intensity at once making the intensities arranged quite regularly. This is because, for instance, a tempo of $ \unit[120]{BPM} $ may be misinterpreted as a tempo of $ \unit[60]{BPM} $ if every other beat is interpreted as an upbeat. It may also be misinterpreted as a tempo of $ \unit[40]{BPM} $ if only every third beat is interpreted as an actual beat, and the other two are interpreted as parts of a triplet. On the other hand, if actual upbeats are interpreted as true beats, the tempo would be misinterpreted as $ \unit[240]{BPM} $, and so on. Consequently, the resulting tempogram vector should ultimately be analysed by conducting a discrete Fourier transformation (DFT) for simplification and to circumvent the extra false information. The results of the DFT obtained using \href{http://docs.scipy.org/doc/scipy/reference/generated/scipy.fft.rfft.html}{\emph{SciPy} \lstinline[style = myprogram, language = Python]{fft.rfft} function} are displayed in figure~\ref{fig:tempogram_dft_visualisation}. The (discrete) points are connected with straight lines to emphasise the distinction between the real and the imaginary parts as well as to highlight local extrema.
+
+    \par
+
+    \begin{figure}[tbhp!]
+        \centering
+        \input{tempogram_fft.tikz}
+        \caption[Visualisation of the discrete Fourier transformation of the tempogram]{Visualisation of the discrete Fourier transformation of the tempogram. The total number of coefficients is $ 128 $}
+        \label{fig:tempogram_dft_visualisation}
+    \end{figure}
+
+    \par
+
+    Having inspected some of the DFTs of tempogram vectors from the training dataset, the author of the project concluded that the real part of the DFTs is sufficient enough for a reliable representation. It usually contains $ 3 $ distinct and (visually) noticeable \emph{spikes} excluding the first coefficient, which may also be observed in figure~\ref{fig:tempogram_dft_visualisation}. The first coefficient is by far the largest value in (probably) all DFTs in the dataset, but the DFTs differ in positions of the next three local maxima of the real part. The imaginary part, on the other hand, is highly correlated to the real part and does not seem to provide any additional information\footnote{The \emph{additional information} mentioned does not mean that the feature is redundant for reconstructing the original values. It means that it may add unnecessary complexity to a model such as a linear regression or a neural network, which may be thought of as an \emph{advancement} of the former. As is well known, inserting linearly correlated features into a linear regression only adds the number of coefficients to compute without improving the results.}.
+
+    \par
+
+    Additionally, the song's duration (in seconds) and the windows' relative positions in songs are also considered auditory features. The reasoning is similar to that in justifying why $ \Delta $-MFCs and $ \Delta^{2} $-MFCs are used: music is a temporal form of art---a music piece's duration is something a listener experiences regardless of other potential, non-auditory features (such as the language of lyrics\footnote{Only the purely linguistic \emph{dimensions} of lyrics, such as semantics, are considered non-auditory. Of course, different languages sound differently, but this is covered by the observed features, mostly by the MFCs.} if they exist). This is comparable to a book's or a movie's duration, or a dimension of a pictorial art work or a statue. Similarly, when in the music piece something audible occurs is also important, whether it is at the beginning, in the middle or in the end. Some true non-auditory features have already been listed in~section~\ref{sec:dataset}.
+
+    \par
+
+    \section{Hypothesis, Goals and Expectations}
+    \label{sec:hypothesis_goals_and_expectations}
+
+    Now that both the analysed features and the target variable were presented in detail and are, hopefully, well understood, a little more concrete intentions may be expressed than the ideas stated in the introduction (v.\ section~\ref{sec:introduction}). Of course, the main hypothesis of the project is that the impression of a song competing in the \href{http://eurovision.tv/}{\emph{ESC}} on the general public demonstrated by the final score could be predicted only from the way the song \emph{sounds}. More precisely, to predict scores of songs competing in the year $ y $ to a certain degree of accuracy, a statistical/mathematical model (a computer program) could be developed by analysing the sound and the scores of songs competing in the preceding years. Hopefully, the degree of accuracy would be high enough to at least predict the ranking list, if not the actual scores.
+
+    \par
+
+    Realistically speaking, absolute scores would be hard to accurately predict using the models proposed in this paper since there is probably a great number of unconsidered variables. For instance, if two relatively equally favourable songs compete in the same year, equally high (or low) points would be split between the two, making each of them score lower than if the other had not competed as well. This may in fact be a part of the reason why lower scores are denser than higher scores (recall figure~\ref{fig:histogram_of_normalised_scores}). Another realistic scenario would be a contestant having a great song but a terrible stage performance, or the other way around, in which case the visual impression could impact the score---negatively or positively. The former situation could not be predicted by models proposed in this paper because the idea is to construct a regression that predicts a single (independent) score at once, and not multiple scores of many concurrent contestants. The latter situation goes beyond the scope of this project as only the relationship between the audio and the score is analysed, ignoring the visual components.
+
+    \par
+
+    The author of the project would consider a model successful if it could identify the top few contestants (songs) within a single year of the \href{http://eurovision.tv/}{Contest} and rank them correctly. As discussed in section~\ref{subsec:scores} and seen in figures~\labelcref{fig:distribution_of_scores_over_years,fig:distribution_of_scores_by_count_over_years,fig:distribution_of_normalised_scores_over_years,fig:histogram_of_normalised_scores}, scores are dense in the lower regions making it more probable that disregarded nuances determine the corresponding parts of the ranking list. Furthermore, in real-life business it would matter the most if a program could identify only the most promising songs: if a song is mediocre at best, there is really no need to analyse how dull it actually is, but the available resources could be invested in finding a better alternative. Still, at least a few of the top contestants should be detected by a useful model. Specifically, if only the absolute winner is identified, the model would not seem stable, not even at the top of the ranking list. Thus such a model would not be reliable---the fact that the winner was "identified" might have merely been a coincidence.
+
+    \par
+
+    When observing models that take into the account the country of origin or even the region (v.\ subsection~\ref{subsec:regional_division_of_the_contestant_countries}) of the contestant, it must be noted that, as much as the feature could \emph{help} the model in predicting, it could also \emph{handicap} it. This is because such a feature might only balance the noise in the training and the validation scores, both of which are exclusively drawn from the previous years. The composition of contestants (national and regional) may completely change in the year that is to be predicted, altering the way a national/regional relation affects the score. Furthermore, such models could only be validated, tested and, most importantly, employed on songs from countries/regions having appeared in their training datasets. In consequence the model might even \emph{overlook} the winner it was supposed to predict. As in many other situations, a simpler and more general solution achieving similar or better results would be far more preferable.
+
+    \par
+
+    \section{Final Models}
+    \label{sec:final_models}
+
+    Although the idea is---for a given model design (its type and the choice of hyperparameters)---to train a model for each year, a \emph{model} shall actually denote the model architecture (design) throughout this section, unless stated otherwise. That is, the term \emph{model} is an abstraction of all of its instances, each trained on its own training and validation sets with its own prediction goal (the year for which it was trained). This is similar to describing properties and methods of classes in object-oriented programming (OOP), which are common to all objects of the same class, through describing them in a general way for an arbitrary class instance.
+
+    \par
+
+    \subsection{Model Architecture}
+    \label{subsec:model_architecture}
+
+    Initially the author approached the problem overly optimistically, with an idea to develop custom deep convolutional neural networks (CNNs) \emph{from scratch}. Having been faced with the scarcity of data, it was apparent that this method was destined to be unsuccessful. The number of examples is simply insufficient to train such a complex model. For instance, to train a model for the year $ y $ based on the results from the previous $ 10 $ years, under the assumption that the average number of contestants per year was $ 25 $ (recall figure~\ref{fig:number_of_contestants_over_years}), only $ 250 $ songs are available. About a quarter of them would be allocated to the validation dataset, resulting in a training set of only $ 185 $--$ 190 $ songs. Of course, the number of windows extracted from each song may in fact be very large, possibly generating a training dataset of as much as $ 75 $k examples (plus additional $ 25 $k validation examples for a total of $ 100 $k examples), but the resulting windows would be largely overlapped, if not nearly identical. To make matters worse, repetition of elements (such as chorus or bridge, or merely a motif) is common in music, making the extracted windows similar even if they do not actually overlap. In the end, the surplus dataset would not improve training, but would speed up the overfitting of the resulting model.
+
+    \par
+
+    Even if a model was trained on the complete dataset to predict results in any of the years in the near future (after the final year in the dataset), the dataset would be composed of only $ 1308 $ songs. In contrast, the subset of the \href{http://millionsongdataset.com/}{\emph{Million Songs Dataset} (\emph{MSD})} from~\cite{bib:Bertin2011} is more than $ \numprint{7.5} $ times larger, while the complete \href{http://millionsongdataset.com/}{\emph{MSD}} is nearly $ 765 $ times larger. It is reasonable to assume that, if a valid evaluation of songs was defined---e.~g.\ a generalisation of individual \emph{preference} and \emph{confidence variables} from~\cite{bib:Oord2013}---a model trained on the \href{http://millionsongdataset.com/}{\emph{MSD}} would outmatch the one trained on the given dataset. This is especially the case with complex models such as CNNs.
+
+    \par
+
+    Through transfer learning (TL), all observed models were developed on top of pretrained \href{http://github.com/jordipons/musicnn}{\emph{musicnn}} models available at~\cite{bib:Pons2018,bib:Pons2019}. The author of this project expected that the models built upon the pretrained ones would yield better results, simply because of the pretrained models’ reported results, richer training datasets and the higher-level features they output (compared to relatively low-level features explained in sections~\labelcref{subsec:sound_preprocessing,subsec:auditory_features}). Furthermore, as explained in section~\ref{subsec:related_works}, through development of this project it has already been assumed that such classification problems (music tagging) are closely related to the targeted regression problem (music scoring). For instance, if rock is currently (at an arbitrary time point) more popular than hip-hop, it is reasonable to expect, based on no additional information, that a song tagged as belonging to rock genre (or a related subgenre) would outscore a song tagged as belonging to hip-hop genre (or a related subgenre).
+
+    \par
+
+    The \href{http://github.com/jordipons/musicnn}{\emph{musicnn}} taggers, as initial layers of custom models, were either non-truncated, or their final layer (\emph{taggram}) was disregarded. Explored extensions of the pretrained models (complete or truncated) fitted on the custom dataset included but were not limited to:
+    \begin{itemize}
+        \item dimension reduction (singular value decomposition (SVD), primary components analysis (PCA)),
+        \item linear regression (ordinary least squares (OLS), least absolute shrinkage and selection operator (LASSO), ridge, ealstic net), including polynomials,
+        \item deep neural networks (NNs).
+    \end{itemize}
+    Dimension reduction was used as a connection between the pretrained layers and custom layers, since many features regarding music tagging were shared amongst all songs from a dataset for a single targeted year. This greatly reduced the required complexity of custom layers while still retaining the variance of the dataset.
+
+    \par
+
+    As one can see from the previous paragraph, no (raw) feature demonstrated in section~\ref{subsec:auditory_features} was actually used, at least not on customly fitted model layers. Also, no national/regional indicator was used, as well. However, features such as the year, song length and window position were used.
+
+    \par
+
+    The hyperparametrisation of custom NN layers was the following:
+    \begin{itemize}
+        \item various numbers and sizes of hidden layers were tested, but no more than $ 6 $ hidden layers and no more than square of the size of initial layer ($ 10 $--$ 12 $) of units per hidden layer,
+        \item activation function was the rectified linear unit (ReLU, rectifier) function for hidden layers and the identity function for the output layer,
+        \item optimisation algorithm was ADADELTA from~\cite{bib:Zeiler2012} but various learning rates were tested,
+        \item loss function was either mean squared error or $ R^{2} $ score\footnote{Actually, as the loss function has to be minimised, $ {- R^{2}} $ was observed. Of course, the lower the $ {- R^{2}} $, the higher the $ R^{2} $.}
+    \end{itemize}
+    To find the optimal hyperparameter combination, the following methods were employed:
+    \begin{itemize}
+        \item manual testing,
+        \item grid search hyperparameter optimisation,
+        \item hyperparameter optimisation using Hyperopt from~\cite{bib:Bergstra2013}.
+    \end{itemize}
+
+    \par
+
+    \subsection{Results}
+    \label{subsec:results}
+
+    Unfortunately, no model architecture (combination, configuration etc.) has shown consistent and useful results of satisfactory performance. In fact, the $ R^{2} $ coefficient of determination has never been non-negative on the validation and test datasets. However, sometimes the winning song has been identified in the test dataset, but, due to such incorrect predictions on the rest of the dataset and not quite consistent behaviour over the years, the author concluded that such \emph{successes} were most probably coincidental.
+
+    \par
+
+    \section{Conclusion}
+    \label{sec:conclusion}
+
+    Obviously, the intended results were not obtained on the \href{http://eurovision.tv/}{\emph{ESC}} dataset. Possible reasons are, ordered by the author's responsibility from highest to lowest:
+    \begin{enumerate}
+        \item the optimal model was simply not found---if true, this is most probably not because the right hyperparameters were not found for the targeted model type since many combinations were tested to no avail, but because the right model type was not found,
+        \item the dataset is simply to small or too poor for such a complex idea,
+        \item scores in the \href{http://eurovision.tv/}{\emph{ESC}} are highly driven by many disregarded non-auditory features (e. g. visual, linguistic, semantic, political etc.).
+    \end{enumerate}
+    Of the three reasons, the first one is least likely due to the extensive search of models, all of which had non-promising performance, done in the project. The second one is highly likely, as mentioned multiple times in this paper, and by developing a good model on another dataset (e.~g.\ \href{http://millionsongdataset.com/}{\emph{MSD}} from~\cite{bib:Bertin2011}, but scores must be calculated from other sources), one could test if the third reason is true or not.
+
+    \par
+
+    In the author's opinion, the research demonstrated in this paper should be continued on another, larger and richer dataset. If not for business use cases---which have been listed in the introduction, section~\ref{sec:introduction}---at least for the curiosity and possibility of mathematically deducing which calculable auditory features make a song likeable. Methods developed through such research could then prove useful in other projects, some of which could also have business potential, maybe even higher than the models originally intended in this project.
+
+    \par
+
+    \subsection{Significance of Computer-Aided Art Form}
+    \label{subsec:significance_of_computer_aided_art_form}
+
+    Briefly, the author strongly emphasises that the human mind and creativity cannot (or should not) be substituted by a computer in the process of actual art making\footnote{To be clear, art can be made \emph{using} a computer, but not \emph{by} a computer. Moreover, it is important to notice when and where the computer is used: artistically high valued electronic music compositions have been produced since the introduction of electronics in music, but, in the author's opinion, there would be nothing artistic in an auto-tuned soprano singing \foreignlanguage{french}{\emph{Le Rossignol et la Rose}} by \foreignlanguage{french}{Camille Saint-Sa\"{e}ns}---at least not without a strong and well articulated idea (such as satire) behind it.}. Still, mainstream music industry is already largely aided by computers and there is no harm in automating it a little bit more---unless one argues that dehumanisation of work leads to unemployment, social disbalance and other negative consequences.
+
+    \par
+
+    The reason why a computer is incapable of creating true art does not stem from the author's elitist and overly anthropocentric views, but it is because computers are deterministic machines constructed and programmed by humans. Even when running a \emph{nondeterministic} program, it is in fact deterministic but based on a pseudorandom algorithm and/or an external seed state, therefore true autonomy, creativity and uniqueness needed to \emph{create} art (and not just imitate others) cannot be obtained. If something art-worthy is actually created by a computer, the programmer and/or the initiator of the program should be credited because they are the ones that started and dictated the process of creation, ultimately run by the computer.
+
+    \par
+
+    \section{Appendix}
+    \label{sec:appendix}
+
+    \subsection{Variance and Standard Deviation of a Multidimensional Sample}
+    \label{subsec:variance_and_standard_deviation_of_a_multidimensional_sample}
+
+    Let $ d \in \positives{\naturals} $ and $ m_{1} , m_{2} , \dotsc , m_{d} \in \positives{\naturals} $. Suppose $ n \in \naturals $, $ n > 1 $, observations $ x_{1} , x_{2} , \dotsc , x_{n} \in \reals^{m_{1} \times m_{2} \times \dotsb \times m_{d}} $ of a $ d $-dimensional real-valued population were measured. Let $ X \in \reals^{m_{1} \times m_{2} \times \dotsb \times m_{d} \times n} $ be the tensor of the sample such that for every $ i = 1 , 2 , \dotsc , n $ its $ i $-th slice along the last dimension is the observation $ x_{i} $---we shall call this tensor the \emph{sample}.
+
+    \par
+
+    Let $ \mean{x} \in \reals^{m_{1} \times m_{2} \times \dotsb \times m_{d}} $ be the mean of the sample $ X $ (each position in $ \mean{x} $ holds the mean of values at the corresponding positions in observations $ x_{1} , x_{2} , \dotsc , x_{n} $). Finally, let tensor $ X ' \in \reals^{m_{1} \times m_{2} \times \dotsb \times m_{d} \times n} $ of joint transformed observations $ x_{1} - \mean{x} , x_{2} - \mean{x} , \dotsc , x_{n} - \mean{x} $ be constructed in the same way as the tensor $ X $ from the original observations.
+
+    \par
+
+    The \emph{diversity} of the sample $ X $ is then measured by the Frobenius norm of the tensor $ X ' $. More precisely, the square of the Frobenius norm divided by an appropriate denominator shall be used. As one can see, when $ d = 1 $ and $ m_{1} = 1 $, the sample variance is
+    \begin{equation*}
+        \begin{split}
+            \Var \left( X \right) & = \frac{1}{n - 1} \left( \sum_{i = 1}^{n} \left( x_{i} - \mean{x} \right)^{2} \right) = { } \\
+            { } & = \frac{1}{n - 1} \left\lVert X ' \right\rVert_{F}^{2} \text{.}
+        \end{split}
+    \end{equation*}
+    Furthermore, when $ d = 1 $ and $ m_{1} \geq 2 $, the trace of the sample covariance matrix actually equals (the notation is explained immediately after the equation)
+    \begin{equation*}
+        \begin{split}
+            \tr \left( \Sigma \left( X \right) \right) & = \sum_{i = 1}^{m} \Cov \left( X^{\left( i \right)} , X^{\left( i \right)} \right) = { } \\
+            { } & = \sum_{i = 1}^{m} \Var \left( X^{\left( i \right)} \right) = { } \\
+            { } & = \sum_{i = 1}^{m} \frac{1}{n - 1} \left( \sum_{j = 1}^{n} \left( x_{j}^{\left( i \right)} - \Mean{x^{\left( i \right)}} \right)^{2} \right) = { } \\
+            { } & = \frac{1}{n - 1} \left( \sum_{i = 1}^{m} \sum_{j = 1}^{n} \left( x_{j}^{\left( i \right)} - \Mean{x^{\left( i \right)}} \right)^{2} \right) = { } \\
+            { } & = \frac{1}{n - 1} \left\lVert X ' \right\rVert_{F}^{2} \text{,}
+        \end{split}
+    \end{equation*}
+    where $ m \coloneqq m_{1} $ is the number of variables in $ X $ (the number of rows), $ X^{\left( i \right)} $ is the $ i $-th row (variable), $ x_{j}^{\left( i \right)} $ is the value of the $ j $-th observation in the $ i $-th row (variable) and $ \Mean{x^{\left( i \right)}} $ is the mean of the $ i $-th row (variable) $ X^{\left( i \right)} $. Obviously, the appropriate denominator should then be $ n - 1 $.
+
+    \par
+
+    Because of the interpretation given above, the value $ \frac{1}{n - 1} \left\lVert X ' \right\rVert_{F}^{2} $ shall be called the \emph{variance} of the sample $ X $, while its square root shall be called the \emph{standard deviation}. The former shall be denoted $ \Var \left( X \right) $ and the latter $ \sd \left( X \right) $. Similarly to the equations above, one can even prove that the values computed this way actually coincide with the trace and its square root of the covariance matrix\footnote{Still, due to numeric reasons, the values shall be computed as defined rather than from the covariance matrix to reduce computational workload.} of the vectorised observations (\emph{flattened} into vectors of dimension $ m_{1} m_{2} \dotsm m_{d} $)---however, the proof is left as an exercise to the reader. The final values do not depend on the choice of the orthonormal basis, which makes the values even more relevant and significant. For instance, the variance is equal to the trace of the covariance matrix of primary components, which is a diagonal matrix with its diagonal elements being exactly variances along said primary components.
+
+    \par
+
+    Apart from a sample's variance, covariance between two samples may be computed as well. Suppose $ Y \in \reals^{m_{1} \times m_{2} \times \dotsb \times m_{d} \times n} $ is another sample of observations $ y_{1} , y_{2} , \dotsc , y_{n} \in \reals^{m_{1} \times m_{2} \times \dotsb \times m_{d}} $, $ \mean{y} \in \reals^{m_{1} \times m_{2} \times \dotsb \times m_{d}} $ is the mean of said observations and $ Y ' \in \reals^{m_{1} \times m_{2} \times \dotsb \times m_{d} \times n} $ is the analogously transformed sample. Furthermore, let $ M_{X '} , M_{Y '} \in \reals^{n \times \left( m_{1} m_{2} \dotsm m_{d} \right)} $ be mode-$ \left( d + 1 \right) $ unfoldings (over the dimension along which the observations are stacked) of tensors $ X ' , Y ' $ respectively. The covariance is then defined as
+    \begin{equation*}
+        \Cov \left( X , Y \right) = \frac{1}{n - 1} \tr \left( M_{X '} \cdot M_{Y '}^{\tran} \right)
+    \end{equation*}
+    ($ A \cdot B $ denotes the standard matrix multiplication, but the operator $ {\cdot} $ is explicitly marked to avoid confusing $ {'} $ for $ {,} $). Since the expression actually evaluates to simply multiplying differences between elements at identical positions and the corresponding means of values, and finally computing the sum of the multiplications, the covariance may actually be generalised to any finite number ($ k \geq 2 $) of samples. However, such a general case cannot easily be expressed as the trace of a matrix multiplication, but inner products of tensors and other tensor manipulations would have to be introduced.
+
+    \par
+
+    Of course, to find a (sub)sample of size $ n $ amongst $ N $ observations with a specific characteristic of its variance (maximal, minimal, as close to the original sample's as possible{\ldots})---or, for that mather, (sub)samples with a certain covariance---by brute-force algorithm, the number of samples to inspect equals $ \binom{N}{n} \in \bigO \left( N^{\min \left( \left\{ n , N - n \right\} \right)} \right) $, which may be practically too large when $ N \gg n \gg 1 $. Therefore the (sub)sample may be found by inspecting at most $ k \in \positives{\naturals} $, $ k \leq \binom{N}{n} $, samples chosen at random (uniformly) and keeping the optimal amongst them. If the algorithm is done sequentially, it may be optimised even further by letting it stop early if the objective does not improve in a fixed, predetermined number of consequent iterations. Alternatively, an optimisation algorithm may be employed: each consecutive guess is generated by analysing the previous guesses and their objective values.
+
+    \par
+
+    \subsection{Binary Classification Evaluation Metrics for Ranking Lists of Scores}
+    \label{subsec:binary_classification_evaluation_metrics_for_ranking_lists_of_scores}
+
+    Let $ X = \left\{ x_{1} , x_{2} , \dotsc , x_{n} \right\} $ be a sample of $ n \in \positives{\naturals} $ observations. Suppose the observations are scored by a scoring function $ y \colon X \to \reals $. Observations in $ X $ may be ranked according to their scores: $ x_{i} \prec x_{j} $ if and only if $ y \left( x_{i} \right) < y \left( x_{j} \right) $, for all \emph{legal} indices $ i , j $. Note that the relation is irreflexive and transitive, meaning it defines a partial order over the sample $ X $ (the order is total, or linear, if the evaluation $ y $ is injective).
+
+    \par
+
+    Since every scoring of observations in the sample $ X $ defines its own partial ordering, notation $ {\prec} $ may be uninformative when comparing ranking lists of two scoring functions. It just does not indicate by which scoring function it has been defined. Thus notation
+    \begin{equation*}
+        \interrel \left( X , y \right) \coloneqq \left\{ \left( x_{i} , x_{j} \right) \in X^{2} : y \left( x_{i} \right) < y \left( x_{j} \right) \right\}
+    \end{equation*}
+    shall be used instead. The capital letters \emph{IR} represent the word \emph{interrelations}. The set $ \interrel \left( X , y \right) $ is actually the set of all possible hierarchical relationships of observations from the sample $ X $ according to the ranking list generated by the scoring $ y $. Analogously, the set of interrelations $ \interrel \left( X , y^{{*}} \right) $ generated by another scoring function $ y^{{*}} $ may be observed.
+
+    \par
+
+    The alternative notation also allows to concentrate only on interrelations \emph{originating} from a subsample $ U \subseteq X $:
+    \begin{multline*}
+        \interrel \left( U ; X , y \right) \coloneqq { } \\ { } = \left\{ \left( x_{i} , x_{j} \right) \in \interrel \left( X , y \right) : x_{i} \in U \lor x_{j} \in U \right\} \text{,}
+    \end{multline*}
+    i.~e.\ $ \interrel \left( U ; X , y \right) $ denotes all interrelations $ \left( x_{i} , x_{j} \right) $ from $ \interrel \left( X , y \right) $ such that at least one of their \emph{ends} is in $ U $. Furthermore, one may be only interested in:
+    \begin{itemize}
+        \item the \emph{outer} interrelations of $ U $:
+        \begin{multline*}
+            \interrel_{\text{out}} \left( U ; X , y \right) \coloneqq { } \\
+            { } = \left\{ \left( x_{i} , x_{j} \right) \in \interrel \left( U ; X , y \right) : { } \vphantom{x_{i} \notin U \lor x_{j} \notin U} \right. \\
+            \left. \vphantom{\left( x_{i} , x_{j} \right) \in \interrel \left( U ; X , y \right)} { } : x_{i} \notin U \lor x_{j} \notin U \right\} \text{,}
+        \end{multline*}
+        \item the \emph{inner} interrelations of $ U $:
+        \begin{multline*}
+            \interrel_{\text{in}} \left( U ; X , y \right) \coloneqq { } \\
+            { } = \left\{ \left( x_{i} , x_{j} \right) \in \interrel \left( U ; X , y \right) : { } \vphantom{x_{i} \in U \land x_{j} \in U} \right. \\
+            \left. \vphantom{\left( x_{i} , x_{j} \right) \in \interrel \left( U ; X , y \right)} { } : x_{i} \in U \land x_{j} \in U \right\} \text{,}
+        \end{multline*}
+        \item the \emph{right} interrelations of $ U $:
+        \begin{multline*}
+            \interrel^{\left( {<} \right)} \left( U ; X , y \right) \coloneqq { } \\ { } = \left\{ \left( x_{i} , x_{j} \right) \in \interrel \left( U ; X , y \right) : x_{i} \in U \right\} \text{,}
+        \end{multline*}
+        \item the \emph{left} interrelations of $ U $:
+        \begin{multline*}
+            \interrel^{\left( {>} \right)} \left( U ; X , y \right) \coloneqq { } \\ { } = \left\{ \left( x_{i} , x_{j} \right) \in \interrel \left( U ; X , y \right) : x_{j} \in U \right\} \text{,}
+        \end{multline*}
+        \item the \emph{outer right} interrelations of $ U $:
+        \begin{multline*}
+            \interrel_{\text{out}}^{\left( {<} \right)} \left( U ; X , y \right) \coloneqq { } \\
+            { } = \left\{ \left( x_{i} , x_{j} \right) \in \interrel \left( U ; X , y \right) : { } \vphantom{x_{i} \in U \land x_{j} \notin U} \right. \\
+            \left. \vphantom{\left( x_{i} , x_{j} \right) \in \interrel \left( U ; X , y \right)} { } : x_{i} \in U \land x_{j} \notin U \right\} \text{,}
+        \end{multline*}
+        or the \emph{outer left} interrelations of $ U $:
+        \begin{multline*}
+            \interrel_{\text{out}}^{\left( {>} \right)} \left( U ; X , y \right) \coloneqq { } \\
+            { } = \left\{ \left( x_{i} , x_{j} \right) \in \interrel \left( U ; X , y \right) : { } \vphantom{x_{i} \notin U \land x_{j} \in U} \right. \\
+            \left. \vphantom{\left( x_{i} , x_{j} \right) \in \interrel \left( U ; X , y \right)} { } : x_{i} \notin U \land x_{j} \in U \right\} \text{.}
+        \end{multline*}
+    \end{itemize}
+    Since \emph{inner} interrelations are simultaneously also \emph{inner right} interrelations and \emph{inner left} interrelations, the two subsets of interrelations are not explicitly mentioned. Reasons why one might observe the mentioned subsets of interrelations may include the need to inspect how observations from $ U $ are ranked globally (compared to all observations from $ X $), how they are ranked compared to other observations, how they are ranked internally (compared only to other observations from $ U $), if they are ranked higher or lower in the global ranking list and if they are ranked higher or lower than other observations.
+
+    \par
+
+    If $ y $ is the reference scoring, a scoring $ y^{{*}} $ may be evaluated, amongst others, by metrics used for evaluating (binary) classification models. For instance, $ \interrel \left( X , y \right) $ may be considered the set of \emph{positives} and $ \interrel^{\complement} \left( X , y \right) $ (the set of interrelations $ \left( x_{i} , x_{j} \right) $, $ i \neq j $, such that $ \left( x_{i} , x_{j} \right) \notin \interrel \left( X , y \right) $ or, equivalently, $ y \left( x_{i} \right) \nless y \left( x_{j} \right) $) may be considered the set of \emph{negatives}. Analogously, $ \interrel \left( X , y^{{*}} \right) $ is then considered the set of predicted \emph{positives} and $ \interrel^{\complement} \left( X , y^{{*}} \right) $ the set of predicted \emph{negatives}. Given all of these sets, accuracy, precision, recall (sensitivity) and specificity of the scoring $ y^{{*}} $ are all well defined, as well as its $ F $-score.
+
+    \par
+
+    However, if the total number of observations $ n $ is \emph{very large} or if the scoring $ y $ actually makes \emph{significant} difference only at the top of the ranking list, the complete ranking list might not be (equally) relevant. A number $ k \in \positives{\naturals} $, $ k \leq n $, may then be chosen to observe, instead of observing all interrelations from $ \interrel \left( X , y \right) $, only the interrelations from $ \interrel \left( K ; X , y \right) \subseteq \interrel \left( X , y \right) $, where $ K \subseteq X $ is the set of the top $ k $ observations from $ X $ in respect of the reference scoring $ y $. All interrelations in the set of negatives $ \interrel^{\complement} \left( K ; X , y \right) \subseteq \interrel^{\complement} \left( X , y \right) $ (note the $ {\subseteq} $ inclusion instead of the $ {\supseteq} $ inclusion with usual (actual) set complements) is then constituted by all interrelations $ \left( x_{i} , x_{j} \right) \in X^{2} $, $ i \neq j $, such that at least one of $ x_{i} , x_{j} $ is in $ K $, but $ y \left( x_{i} \right) \nless y \left( x_{j} \right) $. Moreover, if, for instance, interrelations $ \interrel_{\text{in}} \left( K ; X , y \right) $ were used, both of $ x_{i} , x_{j} $ would have to be in $ K $ for negatives as well as for positives. However, in reality observing only the positives' set $ \interrel_{\text{in}} \left( K ; X , y \right) $ would be insufficient because some scoring might internally rank observations from $ K $ perfectly, but globally rank them at the very bottom of the ranking list instead of the top.
+
+    \par
+
+    If $ \interrel \left( X , y \right) $ is a total (linear) order over the sample $ X $, i.~e.\ if the scoring $ y $ is injective, both sets of positives vs.\ negatives are perfectly balanced (they are equipotent meaning they have the same number of elements). This stems from the simple fact that the set of real numbers $ \reals $ is totally (linearly) ordered. Actually, if the subset of interrelations $ \interrel \left( K ; X , y \right) $ is observed as the set of positives instead of the complete set $ \interrel \left( X , y \right) $, then $ y $ would only have to distinguish the scores of observations from $ K $, but it may generally be non-injective. More precisely, scores of two distinct observations outside of $ K $ could be the same. For instance, if scores are non-negative, more than one irrelevant observation may have a score of $ 0 $.
+
+    \par
+
+    One might wonder why \emph{invention} of new metrics based on the mathematical set theory is required for something that could be evaluated by \emph{simple} (well-known) Pearson correlation coefficient (PCC) or Spearman correlation coefficient (SCC), and the corresponding $ p $-value(s). Between the two coefficients, SCC would be the more appropriate choice if only the ranking list should be evaluated, and not the linear correlation of scoring functions---the former is also the case with the adaptations of binary classification evaluation metrics defined above. The difference is that the \emph{accuracy} of a ranking list defined by a predicted score naively indicates what the odds are that the underlying scoring function (predictor) will mutually rank any two specimina correctly, while the correlation is more meaningful on a larger number of observations. By transitivity, the accuracy metric may then be interpreted as the accuracy of the predicted ranking list; similar interpretations of other metrics may also be made. On the other hand, the correlation indicates how well a monotone curve may be fitted to the actual and the predicted results. However, for completeness of the analysis, both the binary classification metrics and the correlation coefficient(s) should be observed, and neither should be disregarded.
+
+    \par
+
+    Of course, if actual scores matter, and not just the ranking list generated by the scoring, then other metrics should also be inspected when evaluating a prediction scoring system. These include, but are not limited to, the metrics for evaluating regression, such as the (root-)mean-square error ((R)MSE) or the mean absolute (percentage) error (MA(P)E).
+
+    \par
+
+    %\nocite{*}
+    \printbibliography[heading = bibliography]
+\end{document}

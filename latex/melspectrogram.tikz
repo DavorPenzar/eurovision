@@ -1,0 +1,35 @@
+\begin{tikzpicture}
+
+	\begin{axis}[
+		/pgf/number format/1000 sep = \empty,
+		set layers = axis lines on top,
+		xlabel = {Time ($ \si{\second} $)},
+		xmin = 0,
+		xmax = 10,
+		ylabel = {Sound wave frequency ($ \si{\hertz} $, mel scale)},
+		ymin = 0,
+		ymax = 1,
+		ytick = {{0}, {(22/(25*(27/4+log2(11)-2*log2(5)))}, {(44/(25*(27/4+log2(11)-2*log2(5)))}, {(4+log2(11)-2*log2(5))/(27/4+log2(11)-2*log2(5))}, {(5+log2(11)-2*log2(5))/(27/4+log2(11)-2*log2(5))}, {(6+log2(11)-2*log2(5))/(27/4+log2(11)-2*log2(5))}},
+		yticklabels = {$ \pgfmathprintnumber{0} $, $ \pgfmathprintnumber{440} $, $ \pgfmathprintnumber{880} $, $ \pgfmathprintnumber{1760} $, $ \pgfmathprintnumber{3520} $, $ \pgfmathprintnumber{7040} $},
+		colorbar horizontal,
+		colorbar style = {
+			xlabel = {Sound pressure deviance ($ \si{\deci \bel} $)},
+			xticklabel style = {/pgf/number format/showpos = true},
+			xticklabel = {\ifdim\tick pt = 0pt $ \pgfmathprintnumber[print sign = false]{\tick} $ \else \axisdefaultticklabel \fi}
+		},
+		colormap = {customcm}{
+			color = (FireBrick),
+			color = (DarkOrange),
+			color = (Gold),
+			color = (YellowGreen),
+			color = (SeaGreen)
+		},
+		point meta min = -50,
+		point meta max = 50
+	]
+
+		\addplot graphics[includegraphics cmd = \pgfimage, xmin = 0, xmax = 10, ymin = 0, ymax = 1] {melspectrogram.png};
+
+	\end{axis}
+
+\end{tikzpicture}

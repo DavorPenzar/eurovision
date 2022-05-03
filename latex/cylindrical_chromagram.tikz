@@ -1,0 +1,49 @@
+\begin{tikzpicture}
+
+	\begin{axis}[
+		set layers = axis lines on top,
+		xlabel = {$ x $},
+		xmin = -1,
+		xmax = 1,
+		xtick style = {draw = none},
+		ylabel = {$ y $},
+		ymin = -1,
+		ymax = 1,
+		ytick style = {draw = none},
+		colorbar horizontal,
+		colorbar style = {xlabel = {Intensity ($ \unit{\%} $)}},
+		colormap = {customcm}{
+			color = (FireBrick),
+			color = (DarkOrange),
+			color = (Gold),
+			color = (YellowGreen),
+			color = (SeaGreen)
+		},
+		point meta min = 0,
+		point meta max = 100
+	]
+
+		% cylindrical chromagram
+		\addplot graphics[includegraphics cmd = \pgfimage, xmin = -1, xmax = 1, ymin = -1, ymax = 1] {cylindrical_chromagram.png};
+
+		% circle divided into twelfths
+		\path[draw = black, fill = none] (0, 0) circle (1);
+		\draw[black, thin] (0, 0) -- (1, 0);
+		\draw[black, thin] (0, 0) -- ({sqrt(3)/2}, {1/2});
+		\draw[black, thin] (0, 0) -- ({1/2}, {sqrt(3)/2});
+		\draw[black, thin] (0, 0) -- (0, 1);
+		\draw[black, thin] (0, 0) -- ({-1/2}, {sqrt(3)/2});
+		\draw[black, thin] (0, 0) -- ({-sqrt(3)/2}, {1/2});
+		\draw[black, thin] (0, 0) -- (-1, 0);
+		\draw[black, thin] (0, 0) -- ({-sqrt(3)/2}, {-1/2});
+		\draw[black, thin] (0, 0) -- ({-1/2}, {-sqrt(3)/2});
+		\draw[black, thin] (0, 0) -- (0, -1);
+		\draw[black, thin] (0, 0) -- ({1/2}, {-sqrt(3)/2});
+		\draw[black, thin] (0, 0) -- ({sqrt(3)/2}, {-1/2});
+
+		% scale
+		\draw[white, very thick, ->] ({(1+sqrt(3))/(3*sqrt(2))}, {((sqrt(3)-1)/(3*sqrt(2))}) node[semithick, circle, draw = black, fill = white, text = black, text centered] {C} arc (15:75:{2/3});
+
+	\end{axis}
+
+\end{tikzpicture}

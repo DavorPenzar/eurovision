@@ -1,0 +1,31 @@
+\begin{tikzpicture}
+
+	\begin{axis}[
+		set layers = axis lines on top,
+		xlabel = {Time ($ \si{\second} $)},
+		xmin = 0,
+		xmax = 10,
+		ylabel = {Tempo ($ \unit{BPM} $)},
+		ymin = 16,
+		ymax = 480,
+		ymode = log,
+		log basis y = {2},
+		log ticks with fixed point,
+		colorbar horizontal,
+		colorbar style = {xlabel = {Intensity ($ \unit{\%} $)}},
+		colormap = {customcm}{
+			color = (FireBrick),
+			color = (DarkOrange),
+			color = (Gold),
+			color = (YellowGreen),
+			color = (SeaGreen)
+		},
+		point meta min = 0,
+		point meta max = 100
+	]
+
+		\addplot graphics[includegraphics cmd = \pgfimage, xmin = 0, xmax = 10, ymin = 16, ymax = 480] {tempogram.png};
+
+	\end{axis}
+
+\end{tikzpicture}
